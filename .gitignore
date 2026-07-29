@@ -1,0 +1,107 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+# 例外：保留可提交的 env 模板（仅占位空值 + 说明），真值文件
+# .env / .env.secrets 仍被上面的 .env* 规则忽略，绝不入库。
+!.env.example
+!.env.secrets.example
+.mcp.json
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+/src/generated/prisma
+
+# Portal schema 版本指纹（构建期由 scripts/generate-schema-version.mjs 生成）
+/src/lib/portal/.schema-version.txt
+
+# SQLite 数据库文件：含用户哈希和业务数据，禁止提交（仅本地/部署目录持有）
+# dev.db 由部署脚本在各环境独立维护，仓库只保留 schema 和迁移。
+*.db
+*.db-journal
+*.backup
+*.bak
+*.db.bak*
+/prisma/*.db
+/prisma/*.db-journal
+
+# One-off local automation scripts
+/.*.py
+
+# draft media (temporary server-side files for AI vision processing)
+/.draft-media
+/.invoice-staging
+
+# local agent/runtime artifacts
+/.sisyphus
+/agent-runtime/dist
+/agent-runtime/node_modules
+/prisma/prisma
+
+# One-time export / import reference files (真实业务数据，不入库)
+订单列表*.csv
+/importRef/
+/historyOrder/
+
+# 用户上传文件（照片、附件、发票、合同等运行时产物，含真实业务数据，禁止提交）
+# 各环境独立维护，仓库只保留目录结构占位
+/public/uploads/*
+!/public/uploads/.gitkeep
+
+# 凭据文件（发票查询 API 等）—— 真实凭据，绝不入库
+/invoice-api.conf
+/amap.conf
+
+# 客户档案治理脚本输出（含真实业务记录的复核清单，运行时产物，不入库）
+/docs/govern-output/
+
+# CRM 治理脚本运行产物（可能包含业务记录 ID）
+/artifacts/governance/
+
+# Phase E 数据处置脚本导出（含完整业务行，禁止提交）
+/scripts/out/
+
+# ZCode 本地会话产物（plan/会话状态，不入库）
+/.zcode/
+
+# ZCode / AI 工具本地安装目录（skills 等本地配置，不入库）
+/.agents/
+
+# local media / binary dumps (not source)
+/ref-video/
+*.base

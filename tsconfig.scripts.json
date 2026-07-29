@@ -1,0 +1,28 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "plugins": [],
+    "noEmit": true,
+    "skipLibCheck": true,
+    "types": ["node"]
+  },
+  "include": [
+    "scripts/**/*.ts",
+    // next-auth Session/JWT augmentation（src/lib/auth.ts 内的 declare module）必须加载，
+    // 否则 scripts 图内经 application service 引用 session.user.id/role/department 会报 TS2339。
+    "src/lib/auth.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "scripts/audit-external-orders-before-migration.ts",
+    "scripts/backfill-anomalies.ts",
+    "scripts/backfill-merge-profile-ids.ts",
+    "scripts/backfill-payment-invoice.ts",
+    "scripts/dryrun-payment-invoice-backfill.ts",
+    "scripts/govern-customer-merge-orphans.ts",
+    "scripts/migrate-demo-receipts-to-orders.ts",
+    "scripts/migrate-owner-to-reptag.ts",
+    "scripts/migrate-project-budget-costs.ts",
+    "scripts/rematch-unmatched-contract-orders.ts"
+  ]
+}

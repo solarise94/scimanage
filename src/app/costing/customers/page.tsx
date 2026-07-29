@@ -1,0 +1,207 @@
+"use client";
+
+import { useState, Suspense } from "react";
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { useQuery } from "@tanstack/react-query";
+import { Loader2, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
+import { PageShell } from "@/components/ui/page-shell";
+import { Skeleton } from "@/components/ui/skeleton";
+import { MoneyText } from "@/components/ui/money-text";
+import { canAccessCosting } from "@/lib/role-guards";
+
+interface CostSummaryResponse {
+  summary: {
+    subjectType: string;
+    subjectId: string;
+    basis: string;
+    realCost: number;
+    circulationCost: number;
+    taxCost: number;
+    totalCost: number;
+    estimatedCost: number;
+    quotedCost: number;
+    committedCost: number;
+    actualCost: number;
+    settledCost: number;
+  };
+}
+
+export default function CostCustomersPage() {
+  return (
+    <Suspense
+      fallback={
+        <PageShell>
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-64" />
+        </PageShell>
+      }
+    >
+      <CostCustomersContent />
+    </Suspense>
+  );
+}
+
+function CostCustomersContent() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
+  const [profileId, setProfileId] = useState("");
+  const [submittedId, setSubmittedId] = useState("");
+
+  const { data, isLoading, isError, error } = useQuery<CostSummaryResponse>({
+    queryKey: ["costing", "summary", "customer", submittedId],
+    queryFn: async () => {
+      const res = await fetch(
+        `/api/costing/summary?subjectType=CUSTOMER&subjectId=${encodeURIComponent(submittedId)}&basis=FULL`,
+      );
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "加载失败");
+      return json;
+    },
+    enabled: status === "authenticated" && submittedId.trim().length > 0,
+  });
+
+  if (status === "loading") {
+    return (
+      <PageShell>
+        <Skeleton className="h-8 w-48" />
+      </PageShell>
+    );
+  }
+  if (!session) {
+    router.push("/login");
+    return null;
+  }
+  if (!canAccessCosting(session.user.role)) {
+    router.push("/dashboard");
+    return null;
+  }
+
+  const handleSearch = () => {
+    const id = profileId.trim();
+    if (!id) return;
+    setSubmittedId(id);
+  };
+
+  const s = data?.summary;
+
+  return (
+    <PageShell>
+      <PageHeader
+        title="客户成本视图"
+        description="按客户查看成本汇总（口径 FULL）"
+        backHref="/costing"
+        backLabel="返回成本核算"
+      />
+
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="输入客户档案 ID（profileId）"
+            value={profileId}
+            onChange={(e) => setProfileId(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleSearch();
+            }}
+            className="pl-8"
+          />
+        </div>
+        <Button onClick={handleSearch} disabled={!profileId.trim()}>
+          查询
+        </Button>
+      </div>
+
+      {!submittedId ? (
+        <Card className="p-8 text-center text-sm text-muted-foreground">
+          输入客户档案 ID 后点击「查询」查看成本汇总。
+        </Card>
+      ) : isLoading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : isError ? (
+        <Card className="p-8 text-center text-sm text-destructive">
+          {error instanceof Error ? error.message : "加载失败"}
+        </Card>
+      ) : s ? (
+        <div className="space-y-4">
+          <Card>
+            <CardContent className="p-4 space-y-3">
+              <h3 className="text-sm font-medium">成本桶汇总</h3>
+              <div className="grid gap-3 text-sm md:grid-cols-4">
+                <div>
+                  <p className="text-xs text-muted-foreground">真实成本</p>
+                  <p className="font-medium">
+                    <MoneyText value={s.realCost} tone="expense" />
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">流通成本</p>
+                  <p className="font-medium">
+                    <MoneyText value={s.circulationCost} tone="expense" />
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">税费成本</p>
+                  <p className="font-medium">
+                    <MoneyText value={s.taxCost} tone="expense" />
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">总成本</p>
+                  <p className="font-medium">
+                    <MoneyText value={s.totalCost} tone="expense" />
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4 space-y-3">
+              <h3 className="text-sm font-medium">状态维度</h3>
+              <div className="grid gap-3 text-sm md:grid-cols-4">
+                <div>
+                  <p className="text-xs text-muted-foreground">预测成本</p>
+                  <p className="font-medium">
+                    <MoneyText value={s.estimatedCost} />
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">报价成本</p>
+                  <p className="font-medium">
+                    <MoneyText value={s.quotedCost} />
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">已承诺成本</p>
+                  <p className="font-medium">
+                    <MoneyText value={s.committedCost} />
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">实际成本</p>
+                  <p className="font-medium">
+                    <MoneyText value={s.actualCost} />
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">已结清成本</p>
+                  <p className="font-medium">
+                    <MoneyText value={s.settledCost} />
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      ) : null}
+    </PageShell>
+  );
+}

@@ -1,0 +1,37 @@
+# Git & CI
+.git
+.github
+.gitignore
+
+# 依赖与构建产物（容器内重新 npm ci / build）
+node_modules
+**/node_modules
+.next
+agent-runtime/dist
+
+# 本地环境与密钥（绝不入镜像）
+.env
+.env.*
+!.env.secrets.example
+*.conf
+draft-media
+.draft-media
+
+# 数据库
+*.db
+*.db-*
+prisma/dev.db
+
+# 文档与脚本（运行时不需要）
+docs
+README.md
+CLAUDE.md
+AGENTS.md
+
+# macOS
+.DS_Store
+
+# IDE
+.claude
+.vscode
+.idea

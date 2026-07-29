@@ -1,0 +1,3806 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// 部署期一次性迁移 marker（由 Prisma 管理，避免 db push 把表当 drift 删掉）。
+/// 行存在即证明对应迁移已完成；勿随意删除。
+/// createdAt 用 String 对齐三审 raw 表 TEXT DEFAULT datetime('now')，避免升级时
+/// String→DateTime cast 触发 --accept-data-loss。
+model MigrationMarker {
+  key       String @id
+  value     String
+  createdAt String @default(dbgenerated("(datetime('now'))"))
+
+  @@map("_MigrationMarker")
+}
+
+model User {
+  id                                String                                 @id @default(cuid())
+  email                             String                                 @unique
+  name                              String
+  password                          String
+  avatar                            String?
+  role                              String                                 @default("USER")
+  department                        String                                 @default("FIELD_SALES")
+  passwordInitialized               Boolean                                @default(true)
+  emailOnReminder                   Boolean                                @default(true)
+  emailOnStatusChange               Boolean                                @default(true)
+  emailOnTicketReply                Boolean                                @default(true)
+  emailOnComment                    Boolean                                @default(true)
+  createdAt                         DateTime                               @default(now())
+  projects                          ProjectMember[]
+  comments                          Comment[]
+  projectNotes                      ProjectNote[]                          @relation("ProjectNoteAuthor")
+  tickets                           Ticket[]
+  replies                           TicketReply[]
+  activities                        ActivityLog[]
+  reviewsCreated                    OrganizationReviewTask[]               @relation("ReviewCreatedBy")
+  reviewsReviewed                   OrganizationReviewTask[]               @relation("ReviewReviewedBy")
+  reviewedOrders                    ExternalOrder[]                        @relation("OrderReview")
+  devLogs                           DevLog[]
+  invoicesCreated                   ProjectInvoice[]
+  externalOrderImportBatches        ExternalOrderImportBatch[]
+  externalOrderInvoicesCreated      ExternalOrderInvoiceRequest[]
+  financeReceiptsCreated            FinanceReceipt[]
+  financeCostsCreated               FinanceCost[]
+  crmOwnedProfiles                  CrmCustomerProfile[]                   @relation("CrmOwnedProfiles")
+  crmInteractionsCreated            CrmInteraction[]                       @relation("CrmInteractionsCreated")
+  crmFollowUpOwned                  CrmFollowUpTask[]                      @relation("CrmFollowUpOwner")
+  crmFollowUpCreated                CrmFollowUpTask[]                      @relation("CrmFollowUpCreatedBy")
+  crmCheckinsCreated                CrmVisitCheckin[]                      @relation("CrmCheckinCreatedBy")
+  crmAddressesVerified              CrmCustomerAddress[]                   @relation("CrmAddressVerifiedBy")
+  customerRelationsCreated          CustomerRelation[]
+  crmApplicationsSubmitted          CrmCustomerApplication[]               @relation("CrmApplicationsSubmitted")
+  crmApplicationsReviewed           CrmCustomerApplication[]               @relation("CrmApplicationsReviewed")
+  crmApplicationsAdminReviewed      CrmCustomerApplication[]               @relation("CrmApplicationsAdminReviewed")
+  crmApplicationsSupervisorReviewed CrmCustomerApplication[]               @relation("CrmApplicationsSupervisorReviewed")
+  repOrgRequested                   RepresentativeOrganization[]           @relation("RepOrgRequestedBy")
+  repOrgReviewed                    RepresentativeOrganization[]           @relation("RepOrgReviewedBy")
+  appSupervisorEmailTracking        CrmApplicationSupervisorNotification[]
+  supervisorReviewDigest            CrmApplicationSupervisorDigest?
+  reportDraftsCreated               CrmRepresentativeReportDraft[]         @relation("ReportDraftCreatedBy")
+  reportDraftsUpdated               CrmRepresentativeReportDraft[]         @relation("ReportDraftUpdatedBy")
+  RegionManagers                    CrmRegionManager[]
+  crmProfilesAssigned               CrmCustomerProfile[]                   @relation("CrmAssignedByUser")
+  crmProfilesRecalled               CrmCustomerProfile[]                   @relation("CrmRecalledByUser")
+  assignmentLogsFrom                CrmCustomerAssignmentLog[]             @relation("AssignmentFromUser")
+  assignmentLogsTo                  CrmCustomerAssignmentLog[]             @relation("AssignmentToUser")
+  assignmentLogsCreated             CrmCustomerAssignmentLog[]             @relation("AssignmentCreatedBy")
+  ordersCreated                     Order[]                                @relation("OrdersCreated")
+  ordersOwned                       Order[]                                @relation("OrderOwner")
+  technicallyOwnedOrders            Order[]                                @relation("TechnicallyOwnedOrders")
+  technicallyOwnedProjects          Project[]                              @relation("TechnicallyOwnedProjects")
+  governanceTasksResolved           TechnicalOwnerGovernanceTask[]         @relation("GovernanceResolvedBy")
+  orderDraftsOwned                  OrderDraft[]                           @relation("OrderDraftsOwnedBy")
+  orderProjectLinksCreated          OrderProjectLink[]                     @relation("OrderProjectLinksCreated")
+  orderStatusHistoryCreated         OrderStatusHistory[]                   @relation("OrderStatusHistoryCreated")
+  orderMergesCreated                OrderMerge[]                           @relation("OrderMergeCreated")
+  orderImportBatches                OrderImportBatch[]                     @relation("OrderImportBatchCreatedBy")
+  invoiceDocumentsUploaded          InvoiceDocument[]                      @relation("InvoiceDocumentsUploadedBy")
+  invoiceAdjustmentsCreated         InvoiceAdjustment[]                    @relation("InvoiceAdjustmentCreatedBy")
+  advancesCreated                   FinanceAdvance[]                       @relation("FinanceAdvanceCreatedBy")
+  advanceRefundsCreated             FinanceAdvanceRefund[]                 @relation("FinanceAdvanceRefundCreatedBy")
+  revisionsCreated                  OrderRevision[]                        @relation("OrderRevisionCreatedBy")
+  financeReceiptAllocations         FinanceReceiptAllocation[]             @relation("ReceiptAllocationCreatedBy")
+  contractAttachmentsUploaded       ContractAttachment[]                   @relation("ContractAttachmentsUploadedBy")
+  commissionsCreated                FinanceCommission[]                    @relation("FinanceCommissionCreatedBy")
+  mergeLogsOperated                 CustomerMergeLog[]                     @relation("MergeLogsOperated")
+  mergeLogsReversed                 CustomerMergeLog[]                     @relation("MergeLogsReversed")
+  mergeTasksScanned                 CustomerMergeTask[]                    @relation("MergeTasksScanned")
+  mergeTasksResolved                CustomerMergeTask[]                    @relation("MergeTasksResolved")
+  customerRepTagsCreated            CustomerRepTag[]                       @relation("CustomerRepTagsCreatedBy")
+  contractTemplatesCreated          ContractTemplate[]                     @relation("ContractTemplatesCreatedBy")
+  contractTemplatesUpdated          ContractTemplate[]                     @relation("ContractTemplatesUpdatedBy")
+  contractDocumentsCreated          ContractDocument[]                     @relation("ContractDocumentsCreatedBy")
+  orgBindingTasksScanned            CustomerOrgBindingTask[]               @relation("OrgBindingScannedBy")
+  orgBindingTasksResolved           CustomerOrgBindingTask[]               @relation("OrgBindingResolvedBy")
+  orgTextDriftTasksScanned          CustomerOrgTextDriftTask[]             @relation("OrgTextDriftScannedBy")
+  orgTextDriftTasksResolved         CustomerOrgTextDriftTask[]             @relation("OrgTextDriftResolvedBy")
+  orderImportSessions               OrderImportSession[]                   @relation("OrderImportSessionCreatedBy")
+  supplyChainCostEntriesCreated     CostEntry[]                            @relation("CostEntryCreatedBy")
+  supplyChainPlansCreated           SupplyPlan[]                           @relation("SupplyPlanCreatedBy")
+  supplyChainInquiriesCreated       SupplierInquiry[]                      @relation("SupplierInquiryCreatedBy")
+  supplyChainQuotesCreated          SupplierQuote[]                        @relation("SupplierQuoteCreatedBy")
+  supplierFinancePayablesCreated    FinancePayable[]                       @relation("FinancePayableCreatedBy")
+  supplierFinancePaymentsCreated    FinancePayment[]                       @relation("FinancePaymentCreatedBy")
+  supplierFinancePaymentAllocations FinancePaymentAllocation[]             @relation("FinancePaymentAllocationCreatedBy")
+  crmPreferencesCreated             CrmCustomerPreference[]                @relation("CrmPreferenceCreatedBy")
+  crmPreferencesUpdated             CrmCustomerPreference[]                @relation("CrmPreferenceUpdatedBy")
+  crmPreferencesReviewed            CrmCustomerPreference[]                @relation("CrmPreferenceReviewedBy")
+  crmComplaintsOwned                CrmComplaint[]                         @relation("CrmComplaintOwner")
+  crmComplaintsCreated              CrmComplaint[]                         @relation("CrmComplaintCreatedBy")
+  crmComplaintEventsCreated         CrmComplaintEvent[]                    @relation("CrmComplaintEventCreatedBy")
+  customerNameAliasesCreated        CrmCustomerNameAlias[]                 @relation("CustomerNameAliasesCreatedBy")
+  invitationsCreated                UserInvitation[]                       @relation("UserInvitationsCreatedBy")
+  invitationsReceived               UserInvitation[]                       @relation("UserInvitationsForUser")
+  productsCreated                   Product[]                              @relation("ProductCreatedBy")
+  productSkusCreated                ProductSku[]                           @relation("ProductSkuCreatedBy")
+  productChangeLogsCreated          ProductChangeLog[]                     @relation("ProductChangeLogCreatedBy")
+  projectGovernanceAssignmentsCreated ProjectGovernanceAssignment[]         @relation("ProjectGovernanceAssignmentCreatedBy")
+  profileDepartmentOwnerships         CrmProfileDepartmentState[] @relation("ProfileDepartmentOwners")
+  profileDepartmentClaims             CrmProfileDepartmentState[] @relation("ProfileDepartmentClaimedBy")
+  profilePoolSharesCreated            CrmProfilePoolShare[]       @relation("ProfilePoolSharesCreated")
+  profilePoolSharesRevoked            CrmProfilePoolShare[]       @relation("ProfilePoolSharesRevoked")
+  managedServiceAccounts              CustomerServiceAccount[]    @relation("ManagedServiceAccounts")
+
+  @@index([department])
+}
+
+model Representative {
+  id                   String                           @id @default(cuid())
+  name                 String
+  email                String                           @unique
+  token                String?                          @unique // Magic Link token
+  tokenExpiresAt       DateTime?
+  kind                 String                           @default("HUMAN") // HUMAN | SYSTEM（本部系统代表，排除提成/KPI/排行榜/magic link）
+  archived             Boolean                          @default(false)
+  archivedAt           DateTime?
+  createdAt            DateTime                         @default(now())
+  updatedAt            DateTime                         @updatedAt
+  projects             Project[]
+  orders               Order[]
+  regionManagerLinks   CrmRegionManagerRepresentative[]
+  regionAssignments    RepresentativeRegionAssignment[]
+  reportDrafts         CrmRepresentativeReportDraft[]
+  organizationBindings RepresentativeOrganization[]
+  commissionTiers      RepresentativeCommissionTier[]
+  commissions          FinanceCommission[]
+  customerRepTags      CustomerRepTag[]
+}
+
+model ProcurementChannel {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  isDefault   Boolean  @default(false)
+  archived    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model SourceBrand {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  isDefault   Boolean  @default(false)
+  archived    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Organization {
+  id                           String                        @id @default(cuid())
+  orgCode                      String                        @unique
+  canonicalName                String
+  normalizedName               String
+  address                      String?
+  taxId                        String?
+  // Invoice four elements (发票四要素)
+  invoiceAddress               String?
+  invoicePhone                 String?
+  invoiceBankName              String?
+  invoiceBankAccount           String?
+  // Normalization markers
+  isInvoiceSubject             Boolean                       @default(false)
+  taxIdVerifiedAt              DateTime?
+  taxIdVerifySource            String?
+  orgDataSource                String                        @default("MANUAL") // MANUAL, INVOICE_API, GOVERNANCE
+  archived                     Boolean                       @default(false)
+  deleted                      Boolean                       @default(false)
+  createdAt                    DateTime                      @default(now())
+  updatedAt                    DateTime                      @updatedAt
+  aliases                      OrganizationAlias[]
+  sites                        OrganizationSite[]
+  reviewTasks                  OrganizationReviewTask[]
+  invoicesAsBuyer              ProjectInvoice[]
+  externalOrderInvoicesAsBuyer ExternalOrderInvoiceRequest[]
+  buyerOrders                  Order[]                       @relation("OrderBuyerOrganization")
+  representativeBindings       RepresentativeOrganization[]
+  financeReceipts              FinanceReceipt[]
+  crmApplications              CrmCustomerApplication[]      @relation("CrmApplicationsOrg")
+  suggestedOrgBindingTasks     CustomerOrgBindingTask[]      @relation("OrgBindingSuggestedOrg")
+  resolvedOrgBindingTasks      CustomerOrgBindingTask[]      @relation("OrgBindingResolvedOrg")
+  crmProfiles                  CrmCustomerProfile[]          @relation("ProfileOrg")
+
+  @@index([taxId])
+  @@index([isInvoiceSubject])
+}
+
+model OrganizationAlias {
+  id              String       @id @default(cuid())
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId  String
+  alias           String
+  normalizedAlias String
+  aliasType       String       @default("COMMON") // COMMON, ABBREVIATION, FORMER_NAME
+  approved        Boolean      @default(true)
+  createdAt       DateTime     @default(now())
+
+  @@index([normalizedAlias])
+}
+
+model OrganizationSite {
+  id                       String                       @id @default(cuid())
+  organization             Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId           String
+  siteName                 String
+  normalizedSiteName       String
+  siteType                 String                       @default("CAMPUS") // CAMPUS, COLLEGE, LAB, BUILDING, UNIT
+  parentSiteId             String? // soft reference to another OrganizationSite (no FK — SQLite ALTER TABLE limitation)
+  address                  String?
+  archived                 Boolean                      @default(false)
+  // site merge hierarchy record (Task 1.4 preserveHierarchy / D9)
+  mergedFromJson           String? // JSON: [{ siteId, siteName, mergedAt }] — sites merged into this one
+  // site geolocation (Task 1.7/1.13 高德 Amap; fields only, logic added later)
+  lat                      Float?
+  lng                      Float?
+  geocodeSource            String? // MANUAL | POI_SEARCH | GEOCODE | REVERSE_GEOCODE
+  geocodedAt               DateTime?
+  geocodeRawJson           String?
+  createdAt                DateTime                     @default(now())
+  reviewTasks              OrganizationReviewTask[]
+  representativeBindings   RepresentativeOrganization[]
+  suggestedOrgBindingTasks CustomerOrgBindingTask[]     @relation("OrgBindingSuggestedSite")
+  resolvedOrgBindingTasks  CustomerOrgBindingTask[]     @relation("OrgBindingResolvedSite")
+  crmProfiles              CrmCustomerProfile[]         @relation("ProfileOrgSite")
+
+  @@unique([organizationId, normalizedSiteName])
+  @@index([normalizedSiteName])
+  @@index([siteType])
+}
+
+model OrganizationReviewTask {
+  id                      String            @id @default(cuid())
+  rawInput                String
+  normalizedInput         String
+  suggestedOrganizationId String?
+  suggestedOrg            Organization?     @relation(fields: [suggestedOrganizationId], references: [id], onDelete: SetNull)
+  suggestedSiteId         String?
+  suggestedSite           OrganizationSite? @relation(fields: [suggestedSiteId], references: [id], onDelete: SetNull)
+  suggestedCanonicalName  String?
+  suggestedAddress        String?
+  confidence              Float?
+  status                  String            @default("PENDING") // PENDING, APPROVED, REJECTED
+  sourceType              String // CUSTOMER_CREATE, CUSTOMER_EDIT, SMART_FILL
+  sourceId                String
+  createdById             String?
+  createdByUser           User?             @relation("ReviewCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  reviewedById            String?
+  reviewedByUser          User?             @relation("ReviewReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewNote              String?
+  resolutionSource        String? // DB_EXACT, DB_CANDIDATE, LLM_DB_CANDIDATE, MANUAL_NEW, MANUAL_FORCE_NEW, MANUAL_MERGED_TO_EXISTING, TAVILY_MINIMAX_DRAFT
+  suggestedAliasesJson    String?
+  suggestedSitesJson      String?
+  evidenceJson            String?
+  createdAt               DateTime          @default(now())
+  updatedAt               DateTime          @updatedAt
+  reviewedAt              DateTime?
+
+  repOrgBindingRequests RepresentativeOrganization[]
+
+  @@index([status])
+  @@index([sourceType, sourceId])
+}
+
+model Project {
+  id                  String                @id @default(cuid())
+  departmentSnapshot  String                @default("FIELD_SALES") // 不可变部门归属快照（设计 §4.2）
+  name                String
+  description         String?
+  projectNo           String?               @unique
+  orderNumber         String?
+  organization        String?
+  client              String?
+  representative      String?
+  representativeId    String?
+  rep                 Representative?       @relation(fields: [representativeId], references: [id], onDelete: SetNull)
+  profileId           String?
+  profile             CrmCustomerProfile?   @relation("ProfileProjects", fields: [profileId], references: [id], onDelete: SetNull)
+  projectType         String?
+  projectContent      String?
+  quantity            Int?
+  procurementSource   String?
+  brand               String?
+  techSupport         String?
+  /// 技术负责人（Phase E）：Agent project 写的唯一授权源。历史 techSupport 仅展示字符串，
+  /// 不能授权。null = Agent 写 fail-closed。
+  technicalOwnerUserId String?
+  technicalOwner       User? @relation("TechnicallyOwnedProjects", fields: [technicalOwnerUserId], references: [id], onDelete: SetNull)
+  budgetAmount        Int? // 单位：分（元×100）
+  budgetAmountSource  String? // null | MANUAL | ORDER_LINK
+  budgetCost          Int? // 单位：分（元×100）
+  status              String                @default("NOT_STARTED")
+  progress            Int                   @default(0)
+  startDate           DateTime?
+  endDate             DateTime?
+  deliveredAt         DateTime? // 交付时间（合同台账 N 列，区别于 endDate，不参与 progress-receivables）
+  terminatedAt        DateTime? // 终止时间（合同台账 O 列）
+  archived            Boolean               @default(false)
+  deleted             Boolean               @default(false)
+  deletedAt           DateTime?
+  deletedReason       String?
+  // 产品目录与治理桶设计：NORMAL=普通项目；GOVERNANCE_BUCKET=系统治理桶（如 PRJ-OTHER）。
+  // 项目查询 scope 必须用 { AND: [scope, { systemType: "NORMAL" }, filters] } 排除治理桶。
+  systemType          String                @default("NORMAL") // NORMAL | GOVERNANCE_BUCKET
+  systemKey           String?               @unique // 如 GENERAL_OTHER_PROJECT；普通项目为 null
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  members             ProjectMember[]
+  statusHistory       StatusHistory[]
+  tickets             Ticket[]
+  comments            Comment[]
+  notes               ProjectNote[]
+  attachments         Attachment[]
+  activities          ActivityLog[]
+  invoices            ProjectInvoice[]
+  externalOrders      ExternalOrder[]
+  orderLinks          OrderProjectLink[]
+  receipts            FinanceReceipt[]
+  financeCosts        FinanceCost[]
+  advances            FinanceAdvance[]      @relation("FinanceAdvanceProject")
+  contractAttachments ContractAttachment[]
+  commissions         FinanceCommission[]
+  milestones          Milestone[]
+  archiveNotice       ProjectArchiveNotice?
+  costEntries         CostEntry[]
+  complaints          CrmComplaint[]        @relation("CrmComplaintProject")
+  governanceAssignments ProjectGovernanceAssignment[] @relation("ProjectGovernanceAssignments")
+  governanceResolutions ProjectGovernanceAssignment[] @relation("ProjectGovernanceResolvedProject")
+
+  @@index([profileId])
+  @@index([systemType])
+  @@index([departmentSnapshot])
+}
+
+model ProjectMember {
+  id        String   @id @default(cuid())
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  role      String   @default("MEMBER")
+  joinedAt  DateTime @default(now())
+
+  @@unique([projectId, userId])
+}
+
+model StatusHistory {
+  id        String   @id @default(cuid())
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String
+  oldStatus String?
+  newStatus String
+  note      String?
+  createdAt DateTime @default(now())
+  createdBy String
+}
+
+model Ticket {
+  id               String        @id @default(cuid())
+  title            String
+  description      String?
+  status           String        @default("OPEN")
+  priority         String        @default("MEDIUM")
+  reminderDate     DateTime?
+  reminderSent     Boolean       @default(false)
+  reminderStatus   String?       @default("PENDING") // PENDING | PROCESSING | SENT | FAILED
+  reminderLockedAt DateTime?
+  reminderSentAt   DateTime?
+  reminderError    String?
+  project          Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId        String
+  assignee         User?         @relation(fields: [assigneeId], references: [id])
+  assigneeId       String?
+  createdBy        String? // User ID who created this ticket
+  replies          TicketReply[]
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId  String
+  createdAt DateTime @default(now())
+}
+
+model ProjectNote {
+  id                    String   @id @default(cuid())
+  project               Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId             String
+  authorId              String?
+  author                User?    @relation("ProjectNoteAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  authorNameSnapshot    String
+  category              String   @default("GENERAL")
+  content               String
+  visibility            String   @default("INTERNAL")
+  source                String   @default("AGENT")
+  sourceAgentProposalId String?  @unique
+  createdAt             DateTime @default(now())
+  noteAttachments       ProjectNoteAttachment[]
+
+  @@index([projectId, createdAt, id])
+  @@index([projectId, category])
+}
+
+/// 项目备注 ↔ 附件的结构化关联（docs §5）。备注文本中的 Markdown URL 不能充当审计关系或幂等键。
+model ProjectNoteAttachment {
+  noteId       String
+  note         ProjectNote @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  attachmentId String
+  attachment   Attachment  @relation(fields: [attachmentId], references: [id], onDelete: Cascade)
+  sortOrder    Int
+  createdAt    DateTime    @default(now())
+
+  @@id([noteId, attachmentId])
+  @@index([attachmentId])
+}
+
+model TicketReply {
+  id        String   @id @default(cuid())
+  content   String
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  ticketId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId  String
+  createdAt DateTime @default(now())
+}
+
+model Attachment {
+  id        String   @id @default(cuid())
+  filename  String
+  url       String
+  size      Int
+  mimeType  String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String
+  createdAt DateTime @default(now())
+  // ── Agent 私有附件扩展（docs/agent-attachment-routing-design-2026-07-24.md §5）──
+  // 历史 public 行保持 storageKey=null / isPrivate=false / source=PROJECT_UI / status=READY。
+  // 新 Agent 私有项目附件：isPrivate=true、storageKey 指向 AGENT_PROJECT_ATTACHMENT_DIR 相对键、
+  // url 为同源受控内容端点。所有列表/详情/时间线/计数/下载只允许 status=READY。
+  storageKey             String?  @unique
+  isPrivate              Boolean  @default(false)
+  source                 String   @default("PROJECT_UI") // PROJECT_UI | AGENT
+  status                 String   @default("READY") // READY | PENDING_FILE | FAILED | PURGING | MIGRATING
+  agentAttachmentRouteId String?  @unique
+  // 业务可见性归档（软删）：归档后从列表/时间线/计数/下载隐藏，DB 行与私有文件保留，可恢复。
+  // 与 status（文件物理状态机）正交：status=READY 且 archived=false 才对用户可见。
+  // MIGRATING：历史 public→private 迁移中（已持久化目标 storageKey；url 仍指向 public，可崩溃恢复）。
+  archived               Boolean  @default(false)
+  archivedAt             DateTime?
+  noteLinks              ProjectNoteAttachment[]
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  type      String
+  content   String
+  metadata  String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId    String?
+  createdAt DateTime @default(now())
+}
+
+model Notification {
+  id          String   @id @default(cuid())
+  userId      String
+  title       String
+  content     String
+  type        String   @default("SYSTEM")
+  read        Boolean  @default(false)
+  link        String?
+  emailStatus String? // null=no email, "pending", "sent", "failed"
+  emailError  String?
+  dedupeKey   String?  @unique
+  createdAt   DateTime @default(now())
+}
+
+model FailedLoginAttempt {
+  id          String    @id @default(cuid())
+  identifier  String    @unique // email or "ip:email"
+  attempts    Int       @default(0)
+  lastAttempt DateTime  @default(now())
+  lockedUntil DateTime?
+}
+
+/// Internal user account setup / password reset invitations.
+/// This is a separate authentication system from Representative Magic Link tokens
+/// (Representative.token). The two must never share token generation or consumption logic.
+model UserInvitation {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation("UserInvitationsForUser", fields: [userId], references: [id], onDelete: Cascade)
+  purpose     String    @default("ACCOUNT_SETUP") // ACCOUNT_SETUP | PASSWORD_RESET
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  usedAt      DateTime?
+  revokedAt   DateTime?
+  createdById String
+  createdBy   User      @relation("UserInvitationsCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt   DateTime  @default(now())
+
+  @@index([userId, purpose, createdAt])
+  @@index([expiresAt])
+}
+
+model DevLog {
+  id          String    @id @default(cuid())
+  version     String?
+  title       String
+  content     String
+  status      String    @default("DRAFT") // DRAFT, PUBLISHED, ARCHIVED
+  type        String    @default("UPDATE") // UPDATE, FIX, RELEASE, NOTICE
+  createdById String
+  createdBy   User      @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([status, publishedAt])
+  @@index([createdAt])
+}
+
+model ProjectInvoice {
+  id                    String               @id @default(cuid())
+  project               Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId             String
+  contactName           String?
+  projectCode           String?
+  sellerProfile         BillingProfile?      @relation(fields: [sellerProfileId], references: [id], onDelete: SetNull)
+  sellerProfileId       String?
+  sellerName            String?
+  sellerTaxId           String?
+  sellerBankName        String?
+  sellerBankAccount     String?
+  sellerAddress         String?
+  sellerPhone           String?
+  buyerOrganization     Organization?        @relation(fields: [buyerOrganizationId], references: [id], onDelete: SetNull)
+  buyerOrganizationId   String?
+  buyerOrganizationName String
+  buyerTaxId            String?
+  buyerTaxIdFromLookup  Boolean              @default(false)
+  invoiceType           String               @default("NORMAL") // NORMAL, SPECIAL
+  contentSummary        String?
+  totalAmount           Int                  @default(0) // 单位：分（元×100）
+  status                String               @default("DRAFT") // DRAFT, REQUESTED, ISSUED, CANCELLED
+  remark                String?
+  actualInvoiceNo       String?
+  actualIssuedAt        DateTime?
+  createdBy             User                 @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  createdById           String
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+  items                 ProjectInvoiceItem[]
+  receipts              FinanceReceipt[]
+  documents             InvoiceDocument[]
+
+  @@index([projectId])
+}
+
+model ProjectInvoiceItem {
+  id        String         @id @default(cuid())
+  invoice   ProjectInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoiceId String
+  sortOrder Int            @default(0)
+  itemName  String
+  spec      String?
+  unit      String?
+  quantity  Float?
+  amount    Int            @default(0) // 单位：分（元×100）
+
+  @@index([invoiceId])
+}
+
+model BillingProfile {
+  id                    String                        @id @default(cuid())
+  name                  String
+  taxId                 String?
+  bankName              String?
+  bankAccount           String?
+  address               String?
+  phone                 String?
+  legalRepresentative   String? // 法定代表人/委托代理人（合同生成用）
+  isDefault             Boolean                       @default(false)
+  archived              Boolean                       @default(false)
+  createdAt             DateTime                      @default(now())
+  updatedAt             DateTime                      @updatedAt
+  invoices              ProjectInvoice[]
+  externalOrderInvoices ExternalOrderInvoiceRequest[]
+}
+
+model ExternalOrderImportBatch {
+  id                 String          @id @default(cuid())
+  departmentSnapshot String          @default("FIELD_SALES") // 不可变部门归属快照（设计 §4.2：旧模型停止写入，存量统一 FIELD_SALES）
+  source             String
+  rawText            String
+  rowCount           Int
+  createdBy          User            @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  createdById        String
+  createdAt          DateTime        @default(now())
+  orders             ExternalOrder[]
+
+  @@index([departmentSnapshot])
+}
+
+model OrderImportBatch {
+  id               String   @id @default(cuid())
+  source           String
+  importMode       String   @default("DIRECT") // DIRECT | AI_NORMALIZED
+  status           String   @default("PREVIEWED") // PREVIEWED | NORMALIZED | IMPORTED | FAILED
+  originalFilename String?
+  originalMimeType String?
+  rawText          String?
+  rawPreviewJson   String?
+  normalizedJson   String?
+  formatJson       String?
+  warningJson      String?
+  createdById      String
+  createdBy        User     @relation("OrderImportBatchCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model ExternalOrder {
+  id                    String                         @id @default(cuid())
+  departmentSnapshot    String                         @default("FIELD_SALES") // 不可变部门归属快照（设计 §4.2）
+  source                String
+  platform              String?
+  externalOrderNo       String
+  merchantOrderNo       String?
+  storeName             String?
+  orderType             String?
+  receiverName          String?
+  receiverPhone         String?
+  receiverAddress       String?
+  orderUser             String?
+  orderUserTags         String?
+  productNamesRaw       String?
+  productNamesJson      String?
+  itemCount             Int?
+  itemTypeCount         Int?
+  orderAt               DateTime?
+  paidAt                DateTime?
+  scheduledDeliveryText String?
+  sellerMessage         String?
+  merchantRemark        String?
+  formNote              String?
+  grossAmount           Int? // 单位：分（元×100）
+  priceAdjustment       Int? // 单位：分（元×100）
+  paidAmount            Int? // 单位：分（元×100）
+  shippingFee           Int? // 单位：分（元×100）
+  importBatch           ExternalOrderImportBatch       @relation(fields: [importBatchId], references: [id], onDelete: Cascade)
+  importBatchId         String
+  rawJson               String?
+  invoiceStatus         String                         @default("NONE")
+  duplicateGroupId      String?
+  duplicateStatus       String                         @default("UNREVIEWED")
+  mergedIntoId          String?
+  mergedInto            ExternalOrder?                 @relation("OrderMerge", fields: [mergedIntoId], references: [id], onDelete: SetNull)
+  mergedFrom            ExternalOrder[]                @relation("OrderMerge")
+  reviewNote            String?
+  reviewedAt            DateTime?
+  reviewedById          String?
+  reviewedBy            User?                          @relation("OrderReview", fields: [reviewedById], references: [id], onDelete: SetNull)
+  createdAt             DateTime                       @default(now())
+  updatedAt             DateTime                       @updatedAt
+  invoiceRequests       ExternalOrderInvoiceRequest[]
+  invoiceCoverage       ExternalOrderInvoiceCoverage[]
+  profileId             String?
+  profile               CrmCustomerProfile?            @relation("ProfileExternalOrders", fields: [profileId], references: [id], onDelete: SetNull)
+  projectId             String?
+  project               Project?                       @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  customerMatchStatus   String                         @default("UNMATCHED")
+  customerMatchScore    Float?
+  customerMatchReason   String?
+  financeCategory       String                         @default("UNKNOWN")
+  financeTreatment      String                         @default("AUTO")
+  financeAmountOverride Int? // 单位：分（元×100）
+  financeNote           String?
+  receipts              FinanceReceipt[]
+
+  @@unique([source, externalOrderNo])
+  @@index([externalOrderNo])
+  @@index([receiverPhone])
+  @@index([orderAt])
+  @@index([importBatchId])
+  @@index([duplicateStatus])
+  @@index([duplicateGroupId])
+  @@index([profileId])
+  @@index([projectId])
+  @@index([customerMatchStatus])
+  @@index([departmentSnapshot])
+}
+
+model ExternalOrderInvoiceRequest {
+  id                     String                         @id @default(cuid())
+  departmentSnapshot     String                         @default("FIELD_SALES") // 不可变部门归属快照（设计 §4.2）
+  externalOrder          ExternalOrder?                 @relation(fields: [externalOrderId], references: [id], onDelete: SetNull)
+  externalOrderId        String?
+  orderId                String?
+  order                  Order?                         @relation("OrderInvoiceRequests", fields: [orderId], references: [id], onDelete: SetNull)
+  contactName            String?
+  sellerProfile          BillingProfile?                @relation(fields: [sellerProfileId], references: [id], onDelete: SetNull)
+  sellerProfileId        String?
+  sellerName             String?
+  sellerTaxId            String?
+  sellerBankName         String?
+  sellerBankAccount      String?
+  sellerAddress          String?
+  sellerPhone            String?
+  buyerOrganization      Organization?                  @relation(fields: [buyerOrganizationId], references: [id], onDelete: SetNull)
+  buyerOrganizationId    String?
+  buyerOrganizationName  String
+  buyerTaxId             String?
+  buyerTaxIdFromLookup   Boolean                        @default(false)
+  invoiceType            String                         @default("NORMAL")
+  contentSummary         String?
+  totalAmount            Int                            @default(0) // 单位：分（元×100）
+  status                 String                         @default("DRAFT")
+  remark                 String?
+  actualInvoiceNo        String?
+  actualIssuedAt         DateTime?
+  sourceAgentProposalId  String?                        @unique
+  submittedAt            DateTime?
+  // 发票超期催办锁机（与 Ticket 锁机结构一致，见设计文档 §3.5）
+  overdueNudgeSent       Boolean                        @default(false)
+  overdueNudgeStatus     String?                        @default("PENDING") // PENDING | PROCESSING | SENT | FAILED
+  overdueNudgeLockedAt   DateTime?
+  overdueNudgeLastSentAt DateTime?
+  overdueNudgeError      String?
+  createdBy              User                           @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  createdById            String
+  createdAt              DateTime                       @default(now())
+  updatedAt              DateTime                       @updatedAt
+  items                  ExternalOrderInvoiceItem[]
+  receipts               FinanceReceipt[]
+  coverage               ExternalOrderInvoiceCoverage[]
+  orderCoverage          OrderInvoiceCoverage[]
+  documents              InvoiceDocument[]
+  adjustmentsAsOriginal  InvoiceAdjustment[]            @relation("OriginalInvoice")
+  adjustmentsAsNew       InvoiceAdjustment[]            @relation("NewInvoice")
+  allocations            FinanceReceiptAllocation[]
+
+  @@index([externalOrderId])
+  @@index([departmentSnapshot])
+}
+
+model InvoiceAdjustment {
+  id                String                       @id @default(cuid())
+  kind              String // RED | REISSUE
+  reason            String?
+  originalInvoice   ExternalOrderInvoiceRequest  @relation("OriginalInvoice", fields: [originalInvoiceId], references: [id], onDelete: Cascade)
+  originalInvoiceId String
+  newInvoice        ExternalOrderInvoiceRequest? @relation("NewInvoice", fields: [newInvoiceId], references: [id], onDelete: SetNull)
+  newInvoiceId      String?
+  createdBy         User                         @relation("InvoiceAdjustmentCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  createdById       String
+  createdAt         DateTime                     @default(now())
+
+  @@unique([originalInvoiceId])
+  @@index([originalInvoiceId])
+  @@index([newInvoiceId])
+  @@index([createdById])
+}
+
+model ExternalOrderInvoiceItem {
+  id               String                      @id @default(cuid())
+  invoiceRequest   ExternalOrderInvoiceRequest @relation(fields: [invoiceRequestId], references: [id], onDelete: Cascade)
+  invoiceRequestId String
+  sortOrder        Int                         @default(0)
+  itemName         String
+  spec             String?
+  unit             String?
+  quantity         Float?
+  amount           Int                         @default(0) // 单位：分（元×100）
+
+  @@index([invoiceRequestId])
+}
+
+model ExternalOrderInvoiceCoverage {
+  id               String                      @id @default(cuid())
+  invoiceRequest   ExternalOrderInvoiceRequest @relation(fields: [invoiceRequestId], references: [id], onDelete: Cascade)
+  invoiceRequestId String
+  externalOrder    ExternalOrder               @relation(fields: [externalOrderId], references: [id], onDelete: Cascade)
+  externalOrderId  String
+  createdAt        DateTime                    @default(now())
+
+  @@unique([invoiceRequestId, externalOrderId])
+  @@index([externalOrderId])
+  @@index([invoiceRequestId])
+}
+
+model OrderInvoiceCoverage {
+  id               String                      @id @default(cuid())
+  invoiceRequest   ExternalOrderInvoiceRequest @relation(fields: [invoiceRequestId], references: [id], onDelete: Cascade)
+  invoiceRequestId String
+  order            Order                       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId          String
+  // 这张发票里这个订单承担的金额（单位：分），含主订单。完整分摊表事实源，禁止比例推导。
+  // @default(0) 仅为停服迁移加列的过渡机制；应用写入必须显式给值，回填后不变量扫描保证有效发票的 amount > 0。
+  // 见 finance-invoice-architecture-review §3.1 / §4.1。
+  amount           Int                         @default(0)
+  createdAt        DateTime                    @default(now())
+
+  @@unique([invoiceRequestId, orderId])
+  @@index([orderId])
+  @@index([invoiceRequestId])
+}
+
+model InvoiceDocument {
+  id                            String                       @id @default(cuid())
+  projectInvoiceId              String?
+  projectInvoice                ProjectInvoice?              @relation(fields: [projectInvoiceId], references: [id], onDelete: Cascade)
+  externalOrderInvoiceRequestId String?
+  externalOrderInvoiceRequest   ExternalOrderInvoiceRequest? @relation(fields: [externalOrderInvoiceRequestId], references: [id], onDelete: Cascade)
+  kind                          String                       @default("ACTUAL_INVOICE") // ACTUAL_INVOICE | RED_INVOICE | OTHER
+  fileName                      String
+  fileUrl                       String
+  fileSize                      Int
+  mimeType                      String
+  sha256                        String?
+  sourceAgentProposalId         String?                      @unique
+  uploadedById                  String
+  uploadedBy                    User                         @relation("InvoiceDocumentsUploadedBy", fields: [uploadedById], references: [id], onDelete: Cascade)
+  createdAt                     DateTime                     @default(now())
+
+  @@unique([externalOrderInvoiceRequestId, sha256])
+  @@index([projectInvoiceId])
+  @@index([externalOrderInvoiceRequestId])
+  @@index([sha256])
+}
+
+/// 已开票发票号占用锁：防止并发双登记同一票号。冲红/取消后应释放（后续）。
+model IssuedInvoiceNumberClaim {
+  actualInvoiceNo  String   @id
+  invoiceRequestId String   @unique
+  createdAt        DateTime @default(now())
+}
+
+/// 已开票文件哈希占用锁：防止同一文件并发登记到不同申请。
+model IssuedInvoiceFileHashClaim {
+  sha256           String   @id
+  invoiceRequestId String
+  documentId       String   @unique
+  createdAt        DateTime @default(now())
+
+  @@index([invoiceRequestId])
+}
+
+model FinanceReceipt {
+  id                            String                       @id @default(cuid())
+  departmentSnapshot            String                       @default("FIELD_SALES") // 不可变部门归属快照（设计 §4.2）
+  profileId                     String?
+  profile                       CrmCustomerProfile?          @relation("ProfileFinanceReceipts", fields: [profileId], references: [id], onDelete: SetNull)
+  projectId                     String?
+  project                       Project?                     @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  externalOrderId               String?
+  externalOrder                 ExternalOrder?               @relation(fields: [externalOrderId], references: [id], onDelete: SetNull)
+  orderId                       String?
+  order                         Order?                       @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  projectInvoiceId              String?
+  projectInvoice                ProjectInvoice?              @relation(fields: [projectInvoiceId], references: [id], onDelete: SetNull)
+  externalOrderInvoiceRequestId String?
+  externalOrderInvoiceRequest   ExternalOrderInvoiceRequest? @relation(fields: [externalOrderInvoiceRequestId], references: [id], onDelete: SetNull)
+  organizationId                String?
+  organization                  Organization?                @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  amount                        Int // 单位：分（元×100）
+  receivedAt                    DateTime                     @default(now())
+  source                        String                       @default("MANUAL")
+  remark                        String?
+  createdById                   String
+  createdBy                     User                         @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt                     DateTime                     @default(now())
+  updatedAt                     DateTime                     @updatedAt
+  settledAdvances               FinanceAdvance[]             @relation("AdvanceSettledByReceipt")
+  settledAdvanceRefunds         FinanceAdvanceRefund[]       @relation("AdvanceRefundSettledByReceipt")
+  deleted                       Boolean                      @default(false)
+  deletedAt                     DateTime?
+  deletedById                   String?
+  deleteReason                  String?
+  deletionLogs                  FinanceReceiptDeletionLog[]
+  allocations                   FinanceReceiptAllocation[]
+  // Agent 银行流水批次幂等键（与 proposal 生命周期解耦）
+  sourceWorkspaceId             String? // AgentTaskWorkspace.id
+  sourceRowIndex                Int? // 银行流水行号（同一 workspace 内唯一）
+  // Agent proposal 级幂等键：finance.create_receipt 单回款确认链按 proposalId
+  // 冻结——业务写入成功后、proposal finalize 前进程崩溃/租约回收导致同
+  // proposal 重执行时，唯一约束兜底幂等回放，不再重复创建回款与核销。
+  // 银行流水批量确认不用此键（一个 proposal 多笔回款，走 workspace+row）。
+  sourceAgentProposalId         String?                      @unique
+
+  @@unique([sourceWorkspaceId, sourceRowIndex])
+  @@index([profileId])
+  @@index([projectId])
+  @@index([externalOrderId])
+  @@index([orderId])
+  @@index([receivedAt])
+  @@index([deleted])
+  @@index([deletedAt])
+  @@index([organizationId])
+  @@index([departmentSnapshot])
+}
+
+model FinanceReceiptDeletionLog {
+  id           String         @id @default(cuid())
+  receiptId    String
+  receipt      FinanceReceipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  amount       Int // 单位：分（元×100）
+  receivedAt   DateTime
+  orderId      String?
+  profileId    String? // Phase C 扩表：Profile 快照，无 FK
+  projectId    String?
+  source       String?
+  remark       String?
+  reason       String?
+  snapshotJson String
+  deletedById  String
+  deletedAt    DateTime       @default(now())
+
+  @@index([receiptId])
+  @@index([deletedAt])
+}
+
+model FinanceReceiptAllocation {
+  id          String                      @id @default(cuid())
+  receiptId   String
+  receipt     FinanceReceipt              @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  invoiceId   String // ExternalOrderInvoiceRequest.id
+  invoice     ExternalOrderInvoiceRequest @relation(fields: [invoiceId], references: [id])
+  // 回款按订单维度核销：一条 allocation = 某发票里某订单（coverage 行）的一次核销。
+  // 非空以支撑 [receiptId, invoiceId, orderId] 唯一约束（SQLite 对含 NULL 的唯一约束不判重）。
+  // 见 finance-invoice-architecture-review §3.2。
+  orderId     String
+  order       Order                       @relation(fields: [orderId], references: [id])
+  amount      Int // 单位：分（元×100）。本次核销分摊金额
+  createdById String?
+  createdBy   User?                       @relation("ReceiptAllocationCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime                    @default(now())
+
+  @@unique([receiptId, invoiceId, orderId])
+  @@index([invoiceId])
+  @@index([orderId])
+  @@index([createdById])
+}
+
+model FinanceAdvance {
+  id                 String                 @id @default(cuid())
+  departmentSnapshot String                 @default("FIELD_SALES") // 不可变部门归属快照（设计 §4.2）
+  profileId          String?
+  profile            CrmCustomerProfile?    @relation("FinanceAdvanceProfile", fields: [profileId], references: [id], onDelete: SetNull)
+  orderId            String?
+  order              Order?                 @relation("FinanceAdvanceOrder", fields: [orderId], references: [id], onDelete: SetNull)
+  projectId          String?
+  project            Project?               @relation("FinanceAdvanceProject", fields: [projectId], references: [id], onDelete: SetNull)
+  amount             Int // 单位：分（元×100）
+  advancedAt         DateTime               @default(now())
+  status             String                 @default("HELD") // HELD | PARTIAL_REFUNDED | REFUNDED | WRITTEN_OFF
+  settledByReceiptId String?
+  settledByReceipt   FinanceReceipt?        @relation("AdvanceSettledByReceipt", fields: [settledByReceiptId], references: [id], onDelete: SetNull)
+  remark             String?
+  createdById        String
+  createdBy          User                   @relation("FinanceAdvanceCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+  refunds            FinanceAdvanceRefund[]
+
+  @@index([profileId])
+  @@index([orderId])
+  @@index([projectId])
+  @@index([status])
+  @@index([departmentSnapshot])
+}
+
+model FinanceAdvanceRefund {
+  id                 String          @id @default(cuid())
+  advanceId          String
+  advance            FinanceAdvance  @relation(fields: [advanceId], references: [id], onDelete: Cascade)
+  settledByReceiptId String?
+  settledByReceipt   FinanceReceipt? @relation("AdvanceRefundSettledByReceipt", fields: [settledByReceiptId], references: [id], onDelete: SetNull)
+  amount             Int // 单位：分（元×100）
+  refundedAt         DateTime        @default(now())
+  remark             String?
+  createdById        String
+  createdBy          User            @relation("FinanceAdvanceRefundCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt          DateTime        @default(now())
+
+  @@index([advanceId])
+  @@index([settledByReceiptId])
+}
+
+// ─── Unified Order Models ────────────────────────────────────
+
+model Order {
+  id                    String  @id @default(cuid())
+  departmentSnapshot    String  @default("FIELD_SALES") // 不可变部门归属快照（设计 §4.2）
+  orderNo               String  @unique
+  source                String  @default("MANUAL")
+  sourcePlatform        String?
+  sourceRemark          String?
+  externalOrderNo       String?
+  merchantOrderNo       String?
+  legacyExternalOrderId String? @unique
+
+  title       String
+  description String?
+  category    String    @default("UNKNOWN")
+  status      String    @default("DRAFT")
+  orderedAt   DateTime?
+  confirmedAt DateTime?
+  deliveredAt DateTime?
+
+  profileId                  String?
+  profile                    CrmCustomerProfile? @relation("ProfileOrders", fields: [profileId], references: [id], onDelete: SetNull)
+  buyerNameSnapshot          String?
+  buyerPhoneSnapshot         String?
+  buyerWechatSnapshot        String?
+  buyerMiniProgramIdSnapshot String?
+  buyerOrgNameSnapshot       String?
+  buyerAddressSnapshot       String?
+  // 结构化购买方机构外键（批量开票默认分组 / 跨购买方提示 / 凭证匹配机构口径的事实源）。
+  // 最终发票抬头机构记录在 invoice.buyerOrganizationId，可与订单购买方机构不同。
+  // buyerOrgNameSnapshot 仅作文本快照展示，不参与分组与财务校验。见 finance-invoice-architecture-review §3.3。
+  buyerOrganizationId        String?
+  buyerOrganization          Organization?       @relation("OrderBuyerOrganization", fields: [buyerOrganizationId], references: [id], onDelete: SetNull)
+
+  customerMatchStatus String  @default("UNMATCHED")
+  customerMatchScore  Float?
+  customerMatchReason String?
+
+  totalAmount           Int     @default(0) // 单位：分（元×100）
+  financeAmountOverride Int? // 单位：分（元×100）
+  financeTreatment      String  @default("AUTO")
+  financeNote           String?
+
+  commissionPaid Int? // 打款提成（合同台账 W 列），单位：分
+  quarterlyBonus Int? // 季度超指标奖励（合同台账 X 列），单位：分
+
+  ownerUserId      String?
+  ownerUser        User?           @relation("OrderOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  /// 订单技术支持（展示/业务事实源）。项目仅在生成时复制该值，绝不反向决定订单字段。
+  techSupport      String?
+  /// 技术负责人（Phase E）：Agent order/project 写的唯一授权源。与 ownerUserId（业务归属）
+  /// 不同——technicalOwnerUserId 是"谁有资格经 Agent 改这个订单/项目"。
+  /// 历史 techSupport 仅是展示字符串，不能授权。null = Agent 写 fail-closed（需 UI 治理）。
+  technicalOwnerUserId String?
+  technicalOwner       User?      @relation("TechnicallyOwnedOrders", fields: [technicalOwnerUserId], references: [id], onDelete: SetNull)
+  representativeId String?
+  representative   Representative? @relation(fields: [representativeId], references: [id], onDelete: SetNull)
+  createdById      String
+  createdBy        User            @relation("OrdersCreated", fields: [createdById], references: [id], onDelete: Cascade)
+
+  archived  Boolean   @default(false)
+  deleted   Boolean   @default(false)
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // ── 下单代表邮件通知状态机（轮询聚合，见 docs/order-rep-notify-email-design-2026-07-26.md §4.1） ──
+  // PENDING | PROCESSING | SENT | FAILED | SKIPPED；锁机结构对标 overdueNudge* / nudge*。
+  repNotifyStatus   String   @default("PENDING")
+  repNotifyLockedAt DateTime?
+  repNotifySentAt   DateTime?
+  repNotifyError    String?
+  repNotifyAttempts Int      @default(0)
+
+  accrualReversalOfId String?
+  accrualReversalOf   Order?  @relation("AccrualReversal", fields: [accrualReversalOfId], references: [id], onDelete: SetNull)
+  accrualReversals    Order[] @relation("AccrualReversal")
+
+  lines                   OrderLine[]
+  sourceRecords           OrderSourceRecord[]
+  projectLinks            OrderProjectLink[]
+  statusHistory           OrderStatusHistory[]
+  mergeSources            OrderMerge[]                  @relation("OrderMergeSource")
+  mergeTargets            OrderMerge[]                  @relation("OrderMergeTarget")
+  receipts                FinanceReceipt[]
+  invoiceCoverage         OrderInvoiceCoverage[]
+  invoiceRequests         ExternalOrderInvoiceRequest[] @relation("OrderInvoiceRequests")
+  invoiceAllocations      FinanceReceiptAllocation[]
+  financeCosts            FinanceCost[]
+  advances                FinanceAdvance[]              @relation("FinanceAdvanceOrder")
+  commissions             FinanceCommission[]
+  contractAttachments     ContractAttachment[]
+  contractCoverages       OrderContractCoverage[]       @relation("OrderContractCoverages")
+  supplyPlans             SupplyPlan[]
+  supplierInquiries       SupplierInquiry[]
+  costEntries             CostEntry[]
+  supplierFinancePayables FinancePayable[]              @relation("FinancePayableOrder")
+  supplyRequirements      SupplyRequirement[]
+
+  revisions OrderRevision[]
+
+  complaints CrmComplaint[] @relation("CrmComplaintOrder")
+
+  @@index([source, externalOrderNo])
+  @@index([merchantOrderNo])
+  @@index([profileId])
+  @@index([ownerUserId])
+  @@index([representativeId])
+  @@index([status])
+  @@index([category])
+  @@index([orderedAt])
+  @@index([deleted])
+  @@index([buyerOrganizationId])
+  @@index([repNotifyStatus, representativeId])
+  @@index([departmentSnapshot])
+}
+
+model OrderLine {
+  id        String  @id @default(cuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  itemName  String
+  spec      String?
+  unit      String?
+  quantity  Float?
+  unitPrice Int? // 单位：分（元×100）
+  amount    Int     @default(0) // 单位：分（元×100）
+  category  String  @default("UNKNOWN")
+  sortOrder Int     @default(0)
+  rawJson   String?
+
+  // 产品目录身份成交时快照（Phase 1）。改目录后历史订单仍可解释，不联表。
+  // 当前身份源在 OrderLineServiceMapping.productSkuId（一对一）。
+  productCodeSnapshot String?
+  skuCodeSnapshot     String?
+
+  serviceMapping  OrderLineServiceMapping?
+  supplyPlanLines SupplyPlanLine[]
+  supplyRequirements SupplyRequirement[]
+
+  @@index([orderId])
+  @@index([category])
+}
+
+model OrderSourceRecord {
+  id               String   @id @default(cuid())
+  orderId          String?
+  order            Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  importBatchId    String?
+  source           String
+  sourceRemark     String?
+  platform         String?
+  externalOrderNo  String
+  merchantOrderNo  String?
+  duplicateGroupId String?
+  duplicateStatus  String   @default("UNREVIEWED")
+  rawJson          String?
+  rawText          String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([source, externalOrderNo])
+  @@index([orderId])
+  @@index([importBatchId])
+  @@index([externalOrderNo])
+  @@index([merchantOrderNo])
+  @@index([duplicateStatus])
+  @@index([duplicateGroupId])
+}
+
+model OrderProjectLink {
+  id              String   @id @default(cuid())
+  orderId         String
+  projectId       String
+  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  relationType    String   @default("LINKED")
+  treatment       String   @default("PROJECT_INCLUDED")
+  allocatedAmount Int? // 单位：分（元×100）
+  isPrimary       Boolean  @default(false)
+  note            String?
+  createdById     String?
+  createdBy       User?    @relation("OrderProjectLinksCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([orderId, projectId])
+  @@index([orderId])
+  @@index([projectId])
+  @@index([treatment])
+  @@index([relationType])
+}
+
+model OrderStatusHistory {
+  id                String   @id @default(cuid())
+  orderId           String
+  order             Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  oldStatus         String?
+  newStatus         String?
+  oldDeliveryStatus String?
+  newDeliveryStatus String?
+  note              String?
+  createdById       String?
+  createdBy         User?    @relation("OrderStatusHistoryCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt         DateTime @default(now())
+
+  @@index([orderId])
+  @@index([createdAt])
+}
+
+model OrderMerge {
+  id            String   @id @default(cuid())
+  sourceOrderId String
+  targetOrderId String
+  sourceOrder   Order    @relation("OrderMergeSource", fields: [sourceOrderId], references: [id], onDelete: Cascade)
+  targetOrder   Order    @relation("OrderMergeTarget", fields: [targetOrderId], references: [id], onDelete: Cascade)
+  reason        String?
+  createdById   String?
+  createdBy     User?    @relation("OrderMergeCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt     DateTime @default(now())
+
+  @@unique([sourceOrderId, targetOrderId])
+  @@index([targetOrderId])
+}
+
+model OrderRevision {
+  id      String @id @default(cuid())
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  revisionNo Int
+
+  oldTotalAmount   Int // 单位：分（元×100）
+  newTotalAmount   Int // 单位：分（元×100）
+  deltaTotalAmount Int // 单位：分（元×100）
+
+  oldFinanceAmount   Int // 单位：分（元×100）
+  newFinanceAmount   Int // 单位：分（元×100）
+  deltaFinanceAmount Int // 单位：分（元×100）
+
+  effectiveAt     DateTime @default(now())
+  effectivePeriod String
+
+  reason       String
+  snapshotJson String?
+
+  createdById String
+  createdBy   User     @relation("OrderRevisionCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  adjustments ProgressReceivableAdjustment[]
+
+  @@unique([orderId, revisionNo])
+  @@index([orderId])
+  @@index([effectivePeriod])
+}
+
+model ProgressReceivableAdjustment {
+  id String @id @default(cuid())
+
+  sourceType String // ORDER_REVISION
+  sourceId   String
+  revision   OrderRevision @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  orderId   String?
+  projectId String?
+  profileId String? // Phase C 扩表：Profile 快照，无 FK
+
+  periodKey  String
+  occurredAt DateTime @default(now())
+
+  amount   Float
+  category String
+  reason   String?
+
+  createdById String
+  createdAt   DateTime @default(now())
+
+  @@index([periodKey])
+  @@index([orderId])
+  @@index([projectId])
+  @@index([profileId])
+}
+
+model FinanceCost {
+  id          String              @id @default(cuid())
+  departmentSnapshot String       @default("FIELD_SALES") // 不可变部门归属快照（设计 §4.2）
+  profileId   String?
+  profile     CrmCustomerProfile? @relation("ProfileFinanceCosts", fields: [profileId], references: [id], onDelete: SetNull)
+  orderId     String?
+  order       Order?              @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  projectId   String?
+  project     Project?            @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  amount      Int // 单位：分（元×100）
+  costType    String
+  occurredAt  DateTime            @default(now())
+  remark      String?
+  sourceType  String              @default("MANUAL")
+  sourceKey   String?             @unique
+  createdById String
+  createdBy   User                @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  @@index([profileId])
+  @@index([orderId])
+  @@index([projectId])
+  @@index([occurredAt])
+  @@index([costType])
+  @@index([departmentSnapshot])
+}
+
+// ─── CRM Models ──────────────────────────────────────────────
+
+model CrmCustomerProfile {
+  id          String @id @default(cuid())
+  // Phase E contract：Customer 锚点模型与旧锚点映射列已删除，
+  // Profile 是客户身份的唯一事实源。
+  ownerUserId String?
+  ownerUser   User?  @relation("CrmOwnedProfiles", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  departmentStates  CrmProfileDepartmentState[]
+  poolShares        CrmProfilePoolShare[]
+
+  // ── 生命周期字段（Phase C 扩表，docs/customer-profile-master-migration-2026-06-29.md）──
+  // 原从 Customer 锚点扩出的生命周期字段；Phase E contract 起 Profile 为唯一事实源。
+  deleted             Boolean              @default(false)
+  deletedAt           DateTime?
+  mergedIntoProfileId String?
+  mergedIntoProfile   CrmCustomerProfile?  @relation("ProfileMerge", fields: [mergedIntoProfileId], references: [id])
+  mergedFromProfiles  CrmCustomerProfile[] @relation("ProfileMerge")
+
+  // ── 客户业务主权字段（CrmCustomerProfile 主表化迁移，docs/customer-profile-master-migration-2026-06-29.md）──
+  // Phase 1 全部 nullable-first；回填后 Phase 4 再评估是否收紧为必填。
+  // 主权语义：Phase E contract 起这些字段是客户身份/联系方式/地址/机构的唯一权威来源。
+  // 身份
+  name                 String?
+  // 去声调全拼（pinyin-pro），由写路径自动填充，用于语音同音错字检索（AGENT-VOICE-01）。
+  // 如 name="王晓明" → namePinyin="wangxiaoming"，使 "王小明" 也能 SQL 命中。
+  namePinyin           String?
+  customerCode         String?           @unique
+  nameDisambiguator    String?
+  principal            String?
+  labOrGroup           String?
+  // 联系方式
+  phone                String?
+  wechat               String?
+  email                String?
+  miniProgramId        String?
+  // 地址与收货快照（迁移期保留客户级快照；长期是否收敛到 CrmCustomerAddress 在 Phase 4 后单独评估）
+  address              String?
+  addressNote          String?
+  receiverPhone        String?
+  receiverAddress      String?
+  // 机构
+  organizationId       String?
+  organization         String?
+  organizationSiteId   String?
+  organizationRawInput String?
+  org                  Organization?     @relation("ProfileOrg", fields: [organizationId], references: [id], onDelete: SetNull)
+  orgSite              OrganizationSite? @relation("ProfileOrgSite", fields: [organizationSiteId], references: [id], onDelete: SetNull)
+
+  stage                     String                     @default("LEAD") // LEAD, CONTACTED, FOLLOWING, ACTIVE, BLOCKED, LOST, DORMANT
+  importance                String                     @default("NORMAL") // LOW, NORMAL, HIGH, KEY
+  tagsJson                  String?
+  summary                   String?
+  lastFollowUpAt            DateTime?
+  nextFollowUpAt            DateTime?
+  lastOrderAt               DateTime?
+  lastActiveBehaviorEndedAt DateTime? // 最后一个 ACTIVE 行为（CONFIRMED 订单 / IN_PROGRESS 项目 / 履约任务）结束时间
+  activeCooldownEndsAt      DateTime? // ACTIVE 冷却期结束时间（lastActiveBehaviorEndedAt + 30 天）
+  activeWarningIssuedAt     DateTime? // ACTIVE 降级 warning 生成时间
+  // assignmentStatus 语义（Phase 3.2 语义对齐）：这是一个由「客户池分配/回收」工作流显式驱动的
+  // 独立状态机，4 个取值 UNASSIGNED | ASSIGNED | RECALL_CANDIDATE | RECALLED：
+  //   - ASSIGNED        显式派单（/api/crm/customer-pool/[id]/assign）、订单主数据导入、profile 创建默认值
+  //   - RECALL_CANDIDATE 显式标记为待收回候选（长期未拜访自动入池已暂停，/api/crm/customer-pool/scan no-op）
+  //   - RECALLED        显式回收（/api/crm/customer-pool/[id]/recall）
+  //   - UNASSIGNED      代表离职归档时批量解除（/api/representatives/[id]）
+  // ⚠️ 它【不是】由 CustomerRepTag(MANAGING) 或机构/站点绑定派生的——生效代表解析已改为
+  // SITE_BINDING > ORG_BINDING > NONE，不再读取 ownerUserId/assignmentStatus（见
+  // customer-effective-representative.ts）。syncCustomerRepresentativeLinks 只回写 ownerUserId
+  // 缓存与 Project/Order.representativeId，【从不】写 assignmentStatus。设计文档的简化口径
+  // 「ASSIGNED=有 MANAGING 标注且有机构绑定」只是近似：派单时确实同时建 MANAGING tag，但本字段
+  // 额外承载 RECALL_CANDIDATE/RECALLED 等回收生命周期子态，二者并非严格等价。
+  // ⚠️ 耦合点：syncEffectiveRepresentativeLinksForOrganization（customer-representative-sync.ts）
+  // 虽【不写】本字段，但【读】它作为过滤条件（{ assignmentStatus: { not: "ASSIGNED" } }）——org 级
+  // 批量同步会跳过 ASSIGNED 客户。因此代表离职归档（/api/representatives/[id] PATCH）必须先把该代表
+  // 名下 ASSIGNED 客户解除为 UNASSIGNED，再调 sync，否则这些客户的 Project/Order.representativeId
+  // 不会被重算而残留离职代表快照。这是"读但不写"的单向耦合，改本字段语义前需同步检查 sync 的过滤逻辑。
+  assignmentStatus          String                     @default("ASSIGNED") // UNASSIGNED | ASSIGNED | RECALL_CANDIDATE | RECALLED
+  assignedAt                DateTime?
+  assignedByUserId          String?
+  assignedByUser            User?                      @relation("CrmAssignedByUser", fields: [assignedByUserId], references: [id], onDelete: SetNull)
+  recalledAt                DateTime?
+  recalledByUserId          String?
+  recalledByUser            User?                      @relation("CrmRecalledByUser", fields: [recalledByUserId], references: [id], onDelete: SetNull)
+  reflowReason              String?
+  personCategory            String? // STUDENT, POSTDOC, RESEARCHER, PI, TECHNICIAN, CLINICIAN, ADMIN, PROCUREMENT, OTHER
+  jobTitle                  String?
+  graduationDate            DateTime?
+  graduationReminderAt      DateTime?
+  archived                  Boolean                    @default(false)
+  createdAt                 DateTime                   @default(now())
+  updatedAt                 DateTime                   @updatedAt
+  interactions              CrmInteraction[]
+  followUpTasks             CrmFollowUpTask[]
+  addresses                 CrmCustomerAddress[]
+  visitCheckins             CrmVisitCheckin[]
+  applications              CrmCustomerApplication[]   @relation("CrmApplicationsCreatedProfile")
+  assignmentLogs            CrmCustomerAssignmentLog[]
+  orgTextDriftTasks         CustomerOrgTextDriftTask[]
+  preferences               CrmCustomerPreference[]
+  complaints                CrmComplaint[]
+  // 客户常用称呼/历史姓名变体（docs/customer-name-alias-merge-dedup-fix-2026-07-13.md）
+  nameAliases               CrmCustomerNameAlias[]
+
+  // ── Phase C 扩表：Customer FK 家族的 profileId 反向关系（docs/customer-profile-master-migration-2026-06-29.md）──
+  // 命名均带 Profile 后缀以区分既有 CRM 关系，避免与上方字段/其他 relation 名冲突。
+  profileProjects            Project[]                     @relation("ProfileProjects")
+  profileExternalOrders      ExternalOrder[]               @relation("ProfileExternalOrders")
+  profileOrders              Order[]                       @relation("ProfileOrders")
+  profileOrderDrafts         OrderDraft[]                  @relation("ProfileOrderDrafts")
+  profileFinanceReceipts     FinanceReceipt[]              @relation("ProfileFinanceReceipts")
+  profileFinanceAdvances     FinanceAdvance[]              @relation("FinanceAdvanceProfile")
+  profileFinanceCosts        FinanceCost[]                 @relation("ProfileFinanceCosts")
+  profileCostEntries         CostEntry[]                   @relation("ProfileCostEntries")
+  profileRepTags             CustomerRepTag[]              @relation("CustomerRepTagProfile")
+  profileReportLines         CrmRepresentativeReportLine[] @relation("ReportLineProfile")
+  relationsFromProfile       CustomerRelation[]            @relation("RelationsFromProfile")
+  relationsToProfile         CustomerRelation[]            @relation("RelationsToProfile")
+  mergeLogsAsSourceProfile   CustomerMergeLog[]            @relation("MergeLogSourceProfile")
+  mergeLogsAsTargetProfile   CustomerMergeLog[]            @relation("MergeLogTargetProfile")
+  mergeTasksAsProfileA       CustomerMergeTask[]           @relation("MergeTasksAsProfileA")
+  mergeTasksAsProfileB       CustomerMergeTask[]           @relation("MergeTasksAsProfileB")
+  profileOrgBindingTasks     CustomerOrgBindingTask[]      @relation("OrgBindingTasksProfile")
+  importRowsSuggestedProfile OrderImportRow[]              @relation("ImportRowSuggestedProfile")
+  importRowsConfirmedProfile OrderImportRow[]              @relation("ImportRowConfirmedProfile")
+
+  @@index([ownerUserId])
+  @@index([stage])
+  @@index([namePinyin])
+  @@index([nextFollowUpAt])
+  @@index([assignmentStatus])
+  @@index([personCategory])
+  @@index([graduationDate])
+  // 主权字段迁移新增索引
+  @@index([organizationId])
+  @@index([organizationSiteId])
+  // Phase C 生命周期字段索引
+  @@index([deleted])
+  @@index([mergedIntoProfileId])
+}
+
+/// 客户常用称呼 / 历史姓名变体（docs/customer-name-alias-merge-dedup-fix-2026-07-13.md）
+/// 挂在 CrmCustomerProfile（姓名主权表），用于合并后旧姓名沉淀、代表申请查重、
+/// 搜索召回、订单导入分级匹配和后台去重扫描。
+/// aliasType: COMMON（人工常用称呼）| FORMER_NAME（曾用名）| MERGED_NAME（合并沉淀姓名）
+/// sourceType: MANUAL | CUSTOMER_MERGE | IMPORT
+model CrmCustomerNameAlias {
+  id               String             @id @default(cuid())
+  profileId        String
+  profile          CrmCustomerProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  alias            String
+  normalizedAlias  String
+  aliasType        String             @default("COMMON") // COMMON | FORMER_NAME | MERGED_NAME
+  sourceType       String             @default("MANUAL") // MANUAL | CUSTOMER_MERGE | IMPORT
+  sourceMergeLogId String?
+  sourceMergeLog   CustomerMergeLog?  @relation(fields: [sourceMergeLogId], references: [id], onDelete: SetNull)
+  active           Boolean            @default(true)
+  createdById      String?
+  createdBy        User?              @relation("CustomerNameAliasesCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  @@unique([profileId, normalizedAlias])
+  @@index([normalizedAlias, active])
+  @@index([sourceMergeLogId])
+}
+
+/// 客户-代表关系标注（治理 P8/D5）。
+/// MANAGING：正在管理（一个客户可多条多代表协作，isPrimary 标主管理代表）。
+/// FOLLOWED：曾经跟进（历史记录，endedAt 标结束）。
+model CustomerRepTag {
+  id               String             @id @default(cuid())
+  // Phase E contract：Customer 锚点列已删除，profileId 为必填唯一键主体。
+  profileId        String
+  profile          CrmCustomerProfile @relation("CustomerRepTagProfile", fields: [profileId], references: [id], onDelete: Cascade)
+  representativeId String
+  representative   Representative     @relation(fields: [representativeId], references: [id], onDelete: Cascade)
+  tagType          String // MANAGING | FOLLOWED
+  isActive         Boolean            @default(true)
+  startedAt        DateTime           @default(now())
+  endedAt          DateTime?
+  isPrimary        Boolean            @default(false) // MANAGING 时标主次
+  note             String?
+  source           String             @default("MANUAL") // MANUAL | HANDOVER | IMPORT | ASSIGNMENT_MIGRATION
+  createdByUserId  String
+  createdBy        User               @relation("CustomerRepTagsCreatedBy", fields: [createdByUserId], references: [id], onDelete: Cascade)
+  createdAt        DateTime           @default(now())
+
+  @@unique([profileId, representativeId, tagType])
+  @@index([representativeId, tagType])
+  @@index([profileId, tagType, isActive])
+}
+
+model CrmCustomerAddress {
+  id               String             @id @default(cuid())
+  profile          CrmCustomerProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profileId        String
+  label            String             @default("默认")
+  addressText      String?
+  province         String?
+  city             String?
+  district         String?
+  lat              Float?
+  lng              Float?
+  accuracy         Float?
+  sourceType       String             @default("MANUAL") // MANUAL, PROJECT_IMPORT, EXTERNAL_ORDER_IMPORT, VISIT_CHECKIN
+  isPrimary        Boolean            @default(false)
+  verifiedAt       DateTime?
+  verifiedByUserId String?
+  verifiedByUser   User?              @relation("CrmAddressVerifiedBy", fields: [verifiedByUserId], references: [id], onDelete: SetNull)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  @@index([profileId])
+}
+
+model CrmInteraction {
+  id               String             @id @default(cuid())
+  departmentSnapshot String           @default("FIELD_SALES") // 不可变部门归属快照（设计 §4.2）
+  profile          CrmCustomerProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profileId        String
+  type             String // CALL, WECHAT, EMAIL, MEETING, VISIT, REFERRAL, NOTE
+  summary          String
+  detail           String?
+  happenedAt       DateTime           @default(now())
+  nextActionAt     DateTime?
+  relatedProjectId String?
+  sourceType       String? // MANUAL | CUSTOMER_APPLICATION | CHECKIN（来源审计，不作为 KPI 类型过滤）
+  sourceId         String? // 来源业务记录 ID，例如 CrmCustomerApplication.id
+  createdByUserId  String
+  createdByUser    User               @relation("CrmInteractionsCreated", fields: [createdByUserId], references: [id], onDelete: Cascade)
+  voiceUrl         String?
+  transcript       String?
+  summaryTitle     String?
+  summaryNote      String?
+  asrStatus        String             @default("NONE") // NONE | UPLOADED | TRANSCRIBING | DONE | FAILED
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  complaints CrmComplaint[] @relation("CrmComplaintInteraction")
+
+  @@index([profileId, happenedAt])
+  @@index([sourceType, sourceId])
+  @@index([asrStatus])
+  @@index([departmentSnapshot])
+}
+
+model CrmFollowUpTask {
+  id                     String             @id @default(cuid())
+  departmentSnapshot     String             @default("FIELD_SALES") // 不可变部门归属快照（设计 §4.2）
+  profile                CrmCustomerProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profileId              String
+  ownerUserId            String
+  ownerUser              User               @relation("CrmFollowUpOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  title                  String
+  dueAt                  DateTime
+  status                 String             @default("OPEN") // OPEN, DONE, CANCELLED, EXPIRED
+  taskType               String?            @default("CONTACT") // CONTACT | VISIT | OTHER
+  completedAt            DateTime?
+  completedInteractionId String?
+  reminderSent           Boolean            @default(false)
+  reminderStatus         String?            @default("PENDING") // PENDING | PROCESSING | SENT | FAILED
+  reminderLockedAt       DateTime?
+  reminderSentAt         DateTime?
+  reminderError          String?
+  sourceType             String? // PROJECT_TICKET | TICKET_REPLY | PROJECT_COMMENT
+  sourceId               String?
+  sourceProjectId        String?
+  sourceTicketId         String?
+  sourceCommentId        String?
+  sourceTitle            String?
+  sourceUrl              String?
+  sourceOpenKey          String?            @unique
+  createdByUserId        String
+  createdByUser          User               @relation("CrmFollowUpCreatedBy", fields: [createdByUserId], references: [id], onDelete: Cascade)
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+
+  @@index([profileId])
+  @@index([ownerUserId, status])
+  @@index([dueAt, reminderSent])
+  @@index([sourceType, sourceId])
+  @@index([taskType])
+  @@index([departmentSnapshot])
+}
+
+model CrmVisitCheckin {
+  id              String             @id @default(cuid())
+  departmentSnapshot String           @default("FIELD_SALES") // 不可变部门归属快照（设计 §4.2）
+  profile         CrmCustomerProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profileId       String
+  interactionId   String?
+  userId          String
+  user            User               @relation("CrmCheckinCreatedBy", fields: [userId], references: [id], onDelete: Cascade)
+  lat             Float?
+  lng             Float?
+  accuracy        Float?
+  addressSnapshot String?
+  mapProvider     String?
+  photoCount      Int                @default(0)
+  status          String             @default("DRAFT") // DRAFT, COMPLETED
+  voiceUrl        String?
+  transcript      String?
+  summaryTitle    String?
+  summary         String?
+  asrStatus       String             @default("NONE") // NONE | UPLOADED | TRANSCRIBING | DONE | FAILED
+  completedAt     DateTime?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  media           CrmVisitMedia[]
+
+  @@index([profileId, createdAt])
+  @@index([userId])
+  @@index([asrStatus])
+  @@index([departmentSnapshot])
+}
+
+model CrmVisitMedia {
+  id        String          @id @default(cuid())
+  checkin   CrmVisitCheckin @relation(fields: [checkinId], references: [id], onDelete: Cascade)
+  checkinId String
+  url       String
+  mimeType  String
+  size      Int
+  createdAt DateTime        @default(now())
+
+  @@index([checkinId])
+}
+
+model CrmCustomerApplication {
+  id                         String                                 @id @default(cuid())
+  departmentSnapshot         String                                 @default("FIELD_SALES") // 不可变部门归属快照（设计 §4.2）
+  name                       String
+  principal                  String?
+  email                      String?
+  wechat                     String?
+  organization               String?
+  organizationId             String?
+  org                        Organization?                          @relation("CrmApplicationsOrg", fields: [organizationId], references: [id], onDelete: SetNull)
+  organizationSiteId         String?
+  organizationRawInput       String?
+  address                    String?
+  miniProgramId              String?
+  notes                      String?
+  locationLat                Float?
+  locationLng                Float?
+  locationAddress            String?
+  status                     String                                 @default("PENDING") // PENDING, APPROVED, REJECTED
+  submittedByUserId          String
+  submittedByUser            User                                   @relation("CrmApplicationsSubmitted", fields: [submittedByUserId], references: [id])
+  reviewedByUserId           String?
+  reviewedByUser             User?                                  @relation("CrmApplicationsReviewed", fields: [reviewedByUserId], references: [id])
+  reviewedAt                 DateTime?
+  reviewNote                 String?
+  createdCrmProfileId        String?
+  createdCrmProfile          CrmCustomerProfile?                    @relation("CrmApplicationsCreatedProfile", fields: [createdCrmProfileId], references: [id])
+  autoApproved               Boolean                                @default(false)
+  autoApprovedAt             DateTime?
+  adminReviewStatus          String                                 @default("NONE") // NONE | PENDING | CONFIRMED | REJECTED
+  adminReviewedByUserId      String?
+  adminReviewedByUser        User?                                  @relation("CrmApplicationsAdminReviewed", fields: [adminReviewedByUserId], references: [id])
+  adminReviewedAt            DateTime?
+  adminReviewNote            String?
+  supervisorReviewStatus     String                                 @default("NONE") // NONE | PENDING | CONFIRMED | REJECTED
+  supervisorReviewReason     String? // NORMAL | ORG_CONFLICT | CUSTOMER_CONFLICT | DUPLICATE_OVERRIDE | ORG_REQUEST
+  supervisorReviewDetail     String? // JSON
+  supervisorReviewedByUserId String?
+  supervisorReviewedByUser   User?                                  @relation("CrmApplicationsSupervisorReviewed", fields: [supervisorReviewedByUserId], references: [id])
+  supervisorReviewedAt       DateTime?
+  supervisorReviewNote       String?
+  duplicateCheckStatus       String                                 @default("NONE") // NONE | CLEAN | CANDIDATES_FOUND | OVERRIDDEN_NEW
+  duplicateCandidatesJson    String?
+  conflictType               String? // ORG_CONFLICT | CUSTOMER_CONFLICT | BOTH
+  notifiedSupervisorAt       DateTime?
+  supervisorEmailTrackings   CrmApplicationSupervisorNotification[]
+  createdAt                  DateTime                               @default(now())
+  updatedAt                  DateTime                               @updatedAt
+
+  @@index([submittedByUserId])
+  @@index([status])
+  @@index([adminReviewStatus])
+  @@index([supervisorReviewStatus])
+  @@index([supervisorReviewedByUserId])
+  @@index([departmentSnapshot])
+}
+
+model CustomerRelation {
+  id              String             @id @default(cuid())
+  // Phase E contract：Customer 锚点 FK 已删除，Profile 为唯一事实源
+  fromProfileId   String
+  fromProfile     CrmCustomerProfile @relation("RelationsFromProfile", fields: [fromProfileId], references: [id], onDelete: Cascade)
+  toProfileId     String
+  toProfile       CrmCustomerProfile @relation("RelationsToProfile", fields: [toProfileId], references: [id], onDelete: Cascade)
+  type            String
+  strength        String?
+  notes           String?
+  introducedAt    DateTime?
+  createdByUserId String
+  createdByUser   User               @relation(fields: [createdByUserId], references: [id])
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@unique([fromProfileId, toProfileId, type])
+  @@index([fromProfileId])
+  @@index([toProfileId])
+}
+
+model CrmRegionManager {
+  id        String                           @id @default(cuid())
+  userId    String                           @unique
+  user      User                             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  regionId  String?
+  region    RepresentativeRegion?            @relation(fields: [regionId], references: [id], onDelete: SetNull)
+  archived  Boolean                          @default(false)
+  createdAt DateTime                         @default(now())
+  updatedAt DateTime                         @updatedAt
+  reps      CrmRegionManagerRepresentative[]
+}
+
+model CrmRegionManagerRepresentative {
+  id               String           @id @default(cuid())
+  managerId        String
+  manager          CrmRegionManager @relation(fields: [managerId], references: [id], onDelete: Cascade)
+  representativeId String
+  representative   Representative   @relation(fields: [representativeId], references: [id], onDelete: Cascade)
+  assignedAt       DateTime         @default(now())
+
+  @@unique([managerId, representativeId])
+  @@index([representativeId])
+}
+
+model RepresentativeOrganization {
+  id                                  String                  @id @default(cuid())
+  representativeId                    String
+  representative                      Representative          @relation(fields: [representativeId], references: [id], onDelete: Cascade)
+  organizationId                      String? // null during new-org request flow
+  organization                        Organization?           @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  organizationSiteId                  String? // null = org-level binding; non-null = site-level binding
+  organizationSite                    OrganizationSite?       @relation(fields: [organizationSiteId], references: [id], onDelete: SetNull)
+  isPrimary                           Boolean                 @default(false)
+  requestedOrganizationName           String?
+  requestedOrganizationNormalizedName String?
+  organizationReviewTaskId            String?
+  organizationReviewTask              OrganizationReviewTask? @relation(fields: [organizationReviewTaskId], references: [id], onDelete: SetNull)
+  status                              String                  @default("ACTIVE") // ACTIVE | PENDING | REJECTED | ARCHIVED
+  source                              String                  @default("MANUAL") // MANUAL | REP_REQUEST
+  requestedByUserId                   String?
+  requestedBy                         User?                   @relation("RepOrgRequestedBy", fields: [requestedByUserId], references: [id])
+  reviewedByUserId                    String?
+  reviewedBy                          User?                   @relation("RepOrgReviewedBy", fields: [reviewedByUserId], references: [id])
+  reviewedAt                          DateTime?
+  reviewNote                          String?
+  createdAt                           DateTime                @default(now())
+  updatedAt                           DateTime                @updatedAt
+
+  @@unique([representativeId, requestedOrganizationNormalizedName])
+  @@unique([organizationReviewTaskId])
+  @@unique([representativeId, organizationSiteId])
+  @@index([organizationId])
+  @@index([organizationId, status])
+  @@index([organizationSiteId, status])
+  @@index([organizationId, organizationSiteId])
+  @@index([status])
+}
+
+model CrmApplicationSupervisorNotification {
+  id            String                 @id @default(cuid())
+  applicationId String
+  application   CrmCustomerApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastEmailedAt DateTime?
+  createdAt     DateTime               @default(now())
+
+  @@unique([applicationId, userId])
+  @@index([userId])
+}
+
+model CrmApplicationSupervisorDigest {
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastFingerprint String?
+  lastEmailedAt   DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model RepresentativeRegion {
+  id          String                           @id @default(cuid())
+  name        String                           @unique
+  province    String?
+  city        String?
+  district    String?
+  description String?
+  archived    Boolean                          @default(false)
+  createdAt   DateTime                         @default(now())
+  updatedAt   DateTime                         @updatedAt
+  reps        RepresentativeRegionAssignment[]
+  managers    CrmRegionManager[]
+}
+
+model RepresentativeRegionAssignment {
+  id               String               @id @default(cuid())
+  representativeId String
+  representative   Representative       @relation(fields: [representativeId], references: [id], onDelete: Cascade)
+  regionId         String
+  region           RepresentativeRegion @relation(fields: [regionId], references: [id], onDelete: Cascade)
+  isPrimary        Boolean              @default(false)
+  assignedAt       DateTime             @default(now())
+
+  @@unique([representativeId, regionId])
+  @@index([regionId])
+}
+
+model CrmRepresentativeReportDraft {
+  id               String                        @id @default(cuid())
+  representativeId String
+  representative   Representative                @relation(fields: [representativeId], references: [id], onDelete: Cascade)
+  periodType       String // WEEK | DAY
+  periodKey        String // e.g. "2026-05-05" (Monday date)
+  note             String                        @default("")
+  createdByUserId  String
+  createdByUser    User                          @relation("ReportDraftCreatedBy", fields: [createdByUserId], references: [id], onDelete: Cascade)
+  updatedByUserId  String?
+  updatedByUser    User?                         @relation("ReportDraftUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: SetNull)
+  createdAt        DateTime                      @default(now())
+  updatedAt        DateTime                      @updatedAt
+  lines            CrmRepresentativeReportLine[]
+
+  @@unique([representativeId, periodType, periodKey])
+  @@index([periodType, periodKey])
+}
+
+model CrmRepresentativeReportLine {
+  id            String                       @id @default(cuid())
+  reportDraftId String
+  reportDraft   CrmRepresentativeReportDraft @relation(fields: [reportDraftId], references: [id], onDelete: Cascade)
+  profileId     String?
+  profile       CrmCustomerProfile?          @relation("ReportLineProfile", fields: [profileId], references: [id], onDelete: SetNull)
+  customerName  String                       @default("")
+  organization  String?
+  demand        String                       @default("")
+  note          String                       @default("")
+  sortOrder     Int                          @default(0)
+  createdAt     DateTime                     @default(now())
+  updatedAt     DateTime                     @updatedAt
+
+  @@index([reportDraftId, sortOrder])
+  @@index([profileId])
+}
+
+model CrmCustomerStageHistory {
+  id            String   @id @default(cuid())
+  profileId     String
+  ownerUserId   String?
+  previousStage String?
+  nextStage     String
+  changedAt     DateTime @default(now())
+  reason        String
+  actorUserId   String?
+  sourceType    String?
+  sourceId      String?
+  metadataJson  String?
+
+  @@index([profileId, changedAt])
+  @@index([ownerUserId, changedAt])
+  @@index([nextStage, changedAt])
+  @@index([sourceType, sourceId])
+  @@map("crm_customer_stage_history")
+}
+
+model CrmCustomerAssignmentLog {
+  id              String             @id @default(cuid())
+  department        String    @default("FIELD_SALES")
+  targetDepartment  String?
+  profileId       String
+  profile         CrmCustomerProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  fromOwnerUserId String?
+  fromOwnerUser   User?              @relation("AssignmentFromUser", fields: [fromOwnerUserId], references: [id], onDelete: SetNull)
+  toOwnerUserId   String?
+  toOwnerUser     User?              @relation("AssignmentToUser", fields: [toOwnerUserId], references: [id], onDelete: SetNull)
+  action          String // CLAIM | TRANSFER | MARK_CANDIDATE | RELEASE | SHARE_TO_POOL | REVOKE_POOL_SHARE（历史值 ASSIGN | RECALL | REMIND 保留兼容读取）
+  reason          String?
+  createdByUserId String
+  createdByUser   User               @relation("AssignmentCreatedBy", fields: [createdByUserId], references: [id], onDelete: Cascade)
+  createdAt       DateTime           @default(now())
+
+  @@index([profileId])
+  @@index([createdAt])
+}
+
+/// Agent 发票登记的单文件私有 staging（非批次模型）。
+/// storageKey 相对 staging 根目录；文件不得放入 public/。
+model AgentInvoiceStagingFile {
+  id                         String   @id @default(cuid())
+  createdById                String
+  agentRunId                 String?
+  originalFileName           String
+  storageKey                 String   @unique
+  mimeType                   String
+  fileSize                   Int
+  sha256                     String
+  status                     String   @default("UPLOADED") // UPLOADED | ANALYZING | ANALYZED | REGISTERED | SKIPPED | EXPIRED
+  extractedJson              String?
+  ocrRawText                 String?
+  ocrWarningsJson            String?
+  version                    Int      @default(1)
+  registeredInvoiceRequestId String?
+  registeredDocumentId       String?
+  expiresAt                  DateTime
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
+
+  @@index([createdById, status, createdAt])
+  @@index([sha256])
+  @@index([expiresAt])
+}
+
+/// Agent 订单/银行流水导入的单文件私有 staging（非批次模型）。
+/// 见 docs/agent-sequential-order-import-upgrade-design-2026-07-21.md §4.1。
+/// storageKey 相对私有根目录；文件不得放入 public/。importKind 区分 ORDER | BANK_FLOW。
+model AgentImportStagingFile {
+  id             String    @id @default(cuid())
+  ownerUserId    String
+  agentRunId     String?
+  storageKey     String    @unique
+  originalName   String
+  mimeType       String
+  sizeBytes      Int
+  sha256         String
+  importKind     String // ORDER | BANK_FLOW
+  parserKey      String? // ORDER_GENERIC | PINGOODMICE | BANK_FLOW
+  status         String    @default("UPLOADED") // UPLOADED | ANALYZING | ANALYZED | FAILED | EXPIRED
+  sessionId      String?
+  version        Int       @default(1)
+  leaseStartedAt DateTime?
+  /// ANALYZING worker fencing：claim/heartbeat/写回必须匹配；租约回收或终态时清 null。
+  leaseOwner     String?
+  expiresAt      DateTime
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([ownerUserId, sha256, importKind])
+  @@index([ownerUserId, agentRunId, status])
+  @@index([expiresAt])
+}
+
+/// Agent 通用附件私有 staging（docs/agent-attachment-routing-design-2026-07-24.md §5）。
+/// 与发票/导入 staging 并列，承载"客户截图/需求 PDF/报价单"等一般资料的多目标路由。
+/// storageKey 相对 AGENT_ATTACHMENT_STAGING_DIR；文件不得放入 public/。
+model AgentAttachmentStagingFile {
+  id               String   @id @default(cuid())
+  ownerUserId      String
+  agentRunId       String?
+  chatSessionId    String?
+  storageKey       String   @unique
+  originalName     String
+  mimeType         String // 服务端 magic 识别后的 MIME
+  sizeBytes        Int
+  sha256           String
+  status           String   @default("UPLOADED") // UPLOADED | ANALYZING | ANALYZED | FAILED | EXPIRED
+  analysisJson     String? // <= 32 KiB；不存模型 chain-of-thought
+  warningsJson     String?
+  analysisAttempts Int      @default(0) // 最大 3 次实际 provider 调用
+  version          Int      @default(1)
+  leaseOwner       String?
+  leaseStartedAt   DateTime?
+  expiresAt        DateTime
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  messageLinks AgentChatAttachmentLink[]
+  routes       AgentAttachmentRoute[]
+
+  @@index([ownerUserId, agentRunId, status])
+  @@index([chatSessionId, createdAt])
+  @@index([ownerUserId, sha256])
+  @@index([expiresAt])
+}
+
+/// 用户消息 ↔ 通用附件 staging 的结构化关联（事实源；metadataJson 仅存 attachmentCount 冗余）。
+model AgentChatAttachmentLink {
+  id        String                     @id @default(cuid())
+  messageId String
+  message   AgentChatMessage           @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  stagingId String
+  staging   AgentAttachmentStagingFile @relation(fields: [stagingId], references: [id], onDelete: Cascade)
+  sortOrder Int
+  createdAt DateTime                   @default(now())
+
+  @@unique([messageId, stagingId])
+  @@index([stagingId])
+}
+
+/// 通用附件到业务目标的路由记录：幂等、执行状态与目标引用（docs §4.1/§5.1）。
+/// 一个源附件可路由到多个业务对象，因此 staging 本体不用单一 ROUTED 终态。
+model AgentAttachmentRoute {
+  id                      String                     @id @default(cuid())
+  stagingId               String
+  staging                 AgentAttachmentStagingFile @relation(fields: [stagingId], references: [id], onDelete: Cascade)
+  sourceProposalId        String? // confirm 路由的 proposal 审计关联
+  proposalItemKey         String? @unique // PROJECT_NOTE:{proposalId}:{stagingId}
+  activeRouteKey          String? @unique // safe 路由互斥键；终态失效时清空（如 INVOICE_STAGING:{userId}:{stagingId}）
+  targetType              String // INVOICE_STAGING | PROJECT_NOTE
+  targetId                String? // execute 后填目标 ID
+  state                   String   @default("PENDING") // PENDING | PROCESSING | PROMOTED | FAILED | STALE
+  expectedSha256          String
+  expectedVersion         Int
+  processingProposalId    String?
+  destinationAttachmentId String? @unique
+  error                   String?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  @@index([sourceProposalId, stagingId])
+  @@index([stagingId, targetType])
+  @@index([state, updatedAt])
+}
+
+/// 受控任务工作空间：保存私有输入、manifest、中间结果和输出引用。
+/// 见设计文档 §3.1。不提供 shell / venv / 任意命令执行。
+model AgentTaskWorkspace {
+  id              String   @id @default(cuid())
+  ownerUserId     String
+  kind            String // ORDER_IMPORT | INVOICE_INGEST | BANK_FLOW
+  storagePrefix   String
+  manifestJson    String?
+  status          String   @default("ACTIVE") // ACTIVE | COMPLETED | EXPIRED | CANCELLED
+  version         Int      @default(1)
+  /// EXECUTING 态绑定的 proposalId（fencing token，实体列；CAS where 过滤用）
+  boundProposalId String?
+  expiresAt       DateTime
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([ownerUserId, kind, status])
+  @@index([expiresAt])
+}
+
+/// 后台 Job：独立于聊天 session 和 HTTP 请求的长任务调度信封。
+/// 见设计文档 §3.2。ownerUserId 是所有权主权；AgentRun 只负责展示与接续。
+model AgentBackgroundJob {
+  id                String    @id @default(cuid())
+  ownerUserId       String
+  workspaceId       String?
+  kind              String // ORDER_IMPORT | INVOICE_INGEST | BANK_FLOW_MATCH
+  subjectType       String? // 领域主队列类型，如 OrderImportSession
+  subjectId         String?
+  status            String    @default("QUEUED") // QUEUED | RUNNING | WAITING_CONFIRMATION | PAUSED | COMPLETED | COMPLETED_WITH_ERRORS | CANCEL_REQUESTED | CANCELLED | FAILED | EXPIRED
+  cursor            String?
+  version           Int       @default(1)
+  leaseOwner        String?
+  leaseExpiresAt    DateTime?
+  heartbeatAt       DateTime?
+  initialAgentRunId String?
+  currentAgentRunId String?
+  cancelRequestedAt DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  items AgentBackgroundJobItem[]
+
+  @@index([ownerUserId, status, createdAt])
+  @@index([status, leaseExpiresAt])
+  @@index([currentAgentRunId])
+}
+
+/// 后台 Job 的单项：对应一个 staging 文件/行的 safe 处理单元。
+/// 只保存调度状态，不复制订单行、发票或 OCR 的业务事实。
+model AgentBackgroundJobItem {
+  id                String    @id @default(cuid())
+  jobId             String
+  sequenceNo        Int
+  stagingType       String // ORDER | INVOICE | BANK_FLOW
+  stagingId         String
+  status            String    @default("QUEUED") // QUEUED | RUNNING | DONE | FAILED | SKIPPED
+  attemptCount      Int       @default(0)
+  nextAttemptAt     DateTime?
+  proposalId        String?
+  resultSummaryJson String?
+  errorCode         String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  job AgentBackgroundJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, sequenceNo])
+  @@index([jobId, status])
+  @@index([status, nextAttemptAt])
+}
+
+model AgentActionLog {
+  id         String   @id @default(cuid())
+  userId     String
+  agentRunId String?
+  actionKey  String
+  riskLevel  String
+  status     String
+  inputJson  String
+  outputJson String?
+  error      String?
+  proposalId String?
+  targetType String?
+  targetId   String?
+  /// Phase A public-tool 运行时归因：经 public facade 调度时记录对应的 publicToolKey。
+  /// 旧 action 直调为 null；业务审计归因不变（actionKey 仍是权威 internal action）。
+  publicToolKey String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([actionKey, createdAt])
+  @@index([proposalId])
+  @@index([agentRunId])
+}
+
+/// 技术负责人治理任务（Phase E，修正 5）。
+/// 覆盖 Order 与 Project：历史 techSupport/owner 缺失或歧义的资源进入此队列，
+/// 由 ADMIN 在 UI 指派 technicalOwnerUserId 前，Agent 写一律 fail-closed。
+/// @@unique([resourceType, resourceId]) 防同一资源重复建任务。
+model TechnicalOwnerGovernanceTask {
+  id                 String   @id @default(cuid())
+  /// ORDER | PROJECT
+  resourceType       String
+  resourceId         String
+  /// 历史展示名（Project.techSupport 字符串；Order 无历史字段故为 null）。
+  legacyDisplayName  String?
+  /// PENDING | RESOLVED_AUTO | RESOLVED_MANUAL
+  status             String   @default("PENDING")
+  /// 自动回填或手工指派的 user id（resolvedUser 反向关系）。
+  resolvedUserId     String?
+  resolvedUser       User?    @relation("GovernanceResolvedBy", fields: [resolvedUserId], references: [id], onDelete: SetNull)
+  resolvedAt         DateTime?
+  /// 治理原因：EMPTY（无历史名）/ AMBIGUOUS（多名匹配）/ NO_INTERNAL_MATCH（匹配到非员工）
+  reason             String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@unique([resourceType, resourceId])
+  @@index([resourceType, status])
+  @@index([status])
+}
+
+/// 订单草稿（Phase C，修正 6：关系表替代 JSON）。
+/// server-owned、可审计、可过期回收。prepare_order 创建，GenUI PATCH 修改行，
+/// propose_order 经 AgentProposal→confirm 消费（CONSUMED）。
+model OrderDraft {
+  id               String   @id @default(cuid())
+  /// 绑定的合格 actor（Agent 创建订单时同事务绑为 technicalOwner）。
+  ownerUserId      String
+  ownerUser        User     @relation("OrderDraftsOwnedBy", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  agentRunId       String?
+  customerProfileId String?
+  customerProfile  CrmCustomerProfile? @relation("ProfileOrderDrafts", fields: [customerProfileId], references: [id], onDelete: SetNull)
+  /// 乐观锁版本号；GenUI PATCH 必须匹配 expectedVersion。
+  version          Int      @default(1)
+  /// DRAFT | CONSUMED | EXPIRED
+  status           String   @default("DRAFT")
+  /// 服务端确定性生成的标题快照（单行=产品名；多行=首项 等 N 项）。
+  titleSnapshot    String?
+  expiresAt        DateTime
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  lines            OrderDraftLine[]
+
+  @@index([ownerUserId, status])
+  @@index([status, expiresAt])
+  @@index([agentRunId])
+}
+
+/// 订单草稿行（Phase C，修正 6）。
+/// 存服务端解析后的稳定 productKey（catalog/SKU）+ 展示快照，不存短期 productOptionRef。
+model OrderDraftLine {
+  id                       String   @id @default(cuid())
+  orderDraftId             String
+  orderDraft               OrderDraft @relation(fields: [orderDraftId], references: [id], onDelete: Cascade)
+  sortOrder                Int      @default(0)
+  /// 服务端解析后的稳定产品 key（catalog/SKU；后续接产品—货号明细表只换 provider）。
+  productKey               String
+  /// Phase 1：真实 ProductSku id（active+sellable）。confirm 时原子写入 OrderLine 绑定，
+  /// 避免"草稿已选产品，正式订单只留下名称"的降级（设计文档 §5.3）。
+  /// legacy 草稿（仅 productKey）兼容期允许为 null，但新草稿必须经 productSkuId。
+  productSkuId             String?
+  /// 成交时编号快照（与 OrderLine 对齐）。
+  productCodeSnapshot      String?
+  skuCodeSnapshot          String?
+  /// 展示快照（GenUI 卡片用；不作为持久业务事实）。
+  productDisplayNameSnapshot String?
+  /// 项目类型 key（不接受自由文本）。
+  projectTypeKey           String
+  quantity                 Int
+  /// 单价（分；服务端以分保存并重算总额）。
+  unitPriceCents           Int
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  @@index([orderDraftId, sortOrder])
+}
+
+model AgentProposal {
+  id                   String    @id @default(cuid())
+  userId               String
+  agentRunId           String?
+  actionKey            String
+  title                String
+  summary              String
+  riskLevel            String
+  inputJson            String
+  resultJson           String?
+  error                String?
+  status               String    @default("PENDING")
+  targetType           String?
+  targetId             String?
+  /// Phase A public-tool 审计归因：经 public facade 创建 proposal 时持久化对应的 publicToolKey。
+  /// confirm/reject 复原到 invocation，使终态 ActionLog 可追溯模型实际调用的 public tool。
+  /// 旧 proposal / 直调 internal action 为 null。
+  publicToolKey       String?
+  /// 服务端生成的结构化展示快照（JSON）。卡片组件优先读取此字段，不再从 summary 正则刮取实体名。
+  /// 由 buildProposal() 在解析和验证后写入；旧数据为 null，卡片回退到正则匹配。
+  displayPropsJson     String?
+  /// 串行化活跃键：serialByUser action 在 PENDING/PROCESSING 时写入 `${userId}::${actionKey}`，
+  /// 终态（CONFIRMED/FAILED/REJECTED）清为 null。唯一约束保证并发 check-and-create 原子互斥。
+  serialActiveKey      String?   @unique
+  /// PROCESSING 租约令牌：claim 时写入；终态/超时回收时清 null。
+  /// 旧 worker 写终态必须匹配该令牌，回收后即失去提交资格。
+  processingLeaseToken String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  decidedAt            DateTime?
+
+  @@index([userId, status, createdAt])
+  @@index([actionKey, createdAt])
+  @@index([agentRunId, createdAt])
+}
+
+/// P1-3 allowProposal 可信前端事件（docs/agent-public-surface-cleanup-plan-2026-07-26.md §六 P1-3）。
+/// 模型驱动的 proposal 创建（channel="agent"）必须先消费一个由浏览器 UI 经 NextAuth
+/// 颁发的事件，闭合「模型话术触发 propose ≠ 用户明确同意」语义漏洞。
+/// 一次性消费：consumeConfirmationEventForProposal 在 proposal 同事务内原子置 consumedAt，
+/// count===0 视为无效（已消费 / 跨 run / targetIntent 不匹配）。幂等键防 UI 重放重复颁发。
+model AgentUserConfirmationEvent {
+  id             String     @id @default(cuid())
+  actorUserId    String
+  agentRunId     String
+  /// 目标 intent：confirm actionKey（如 "contracts.generate"）或 draft 绑定键。
+  targetIntent   String
+  /// 动作类型；当前仅 create_proposal。预留枚举扩展（如 confirm_draft）。
+  action         String     @default("create_proposal")
+  /// UI 颁发幂等键：同 actor+key 重复颁发返回既有未消费事件；已消费再颁发 → 409。
+  idempotencyKey String     @unique
+  /// 一次性消费时间戳；null = 未消费。proposal 创建事务内置非 null。
+  consumedAt     DateTime?
+  createdAt      DateTime   @default(now())
+
+  @@index([actorUserId, agentRunId, consumedAt])
+}
+
+model AgentRun {
+  id         String   @id @default(cuid())
+  userId     String
+  role       String
+  name       String?
+  email      String?
+  status     String   @default("ACTIVE")
+  source     String   @default("CHAT")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  lastUsedAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([status, lastUsedAt])
+}
+
+model AgentChatSession {
+  id             String             @id @default(cuid())
+  userId         String
+  agentRunId     String?
+  title          String?
+  status         String             @default("ACTIVE")
+  source         String             @default("CHAT")
+  summary        String?
+  compactSummary String?
+  metadataJson   String?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  lastMessageAt  DateTime           @default(now())
+  messages       AgentChatMessage[]
+
+  @@index([userId, lastMessageAt])
+  @@index([agentRunId])
+  @@index([status, lastMessageAt])
+}
+
+model AgentChatMessage {
+  id             String           @id @default(cuid())
+  sessionId      String
+  session        AgentChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  agentRunId     String?
+  userId         String
+  role           String
+  content        String
+  state          String           @default("done")
+  timelineJson   String?
+  tokenUsageJson String?
+  metadataJson   String?
+  createdAt      DateTime         @default(now())
+  attachmentLinks AgentChatAttachmentLink[]
+
+  @@index([sessionId, createdAt])
+  @@index([userId, createdAt])
+  @@index([agentRunId, createdAt])
+}
+
+model AgentMemory {
+  id              String    @id @default(cuid())
+  userId          String
+  scope           String    @default("USER")
+  kind            String
+  content         String
+  confidence      Float     @default(0.5)
+  source          String    @default("AGENT")
+  sourceMessageId String?
+  status          String    @default("ACTIVE")
+  metadataJson    String?
+  expiresAt       DateTime?
+  lastUsedAt      DateTime?
+  // 向量召回（梦境记忆 D1）：bge-m3 1024 维 Float32 LE 压缩；null=未编码。
+  embeddingBytes  Bytes?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([userId, kind, status])
+  @@index([expiresAt])
+  @@index([lastUsedAt])
+}
+
+// 梦境记忆 D1：实体级（项目/客户）热记忆，夜间整理产出。
+// 每条 (userId, entityType, entityId) 唯一；summary/embedding 是 dream consolidation 的产物。
+// status 生命周期：ACTIVE（当前活跃）→ STALE（久未活跃）→ ARCHIVED（不再注入 prompt）。
+model AgentEntityMemory {
+  id             String    @id @default(cuid())
+  userId         String
+  entityType     String // "project" | "customer"
+  entityId       String
+  name           String // 项目名/客户名快照
+  summary        String // 一句话活跃摘要（中文，≤120字）
+  activityScore  Float     @default(0)
+  lastActiveAt   DateTime?
+  // bge-m3 1024 维 Float32 LE 压缩；null=尚未编码（向量服务不可用时的降级产物）。
+  embeddingBytes Bytes?
+  status         String    @default("ACTIVE") // ACTIVE | STALE | ARCHIVED
+  metadataJson   String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([userId, entityType, entityId])
+  @@index([userId, status, activityScore])
+}
+
+model AgentProactiveTask {
+  id             String    @id @default(cuid())
+  userId         String
+  agentRunId     String?
+  sessionId      String?
+  kind           String
+  title          String
+  payloadJson    String
+  status         String    @default("PENDING")
+  triggerAt      DateTime
+  notificationId String?
+  error          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  decidedAt      DateTime?
+
+  @@index([userId, status, triggerAt])
+  @@index([agentRunId])
+  @@index([sessionId])
+}
+
+// 合同附件（合同台账 AQ 列）：与 InvoiceDocument 并行，构成"合同(非必需) + 发票"双附件
+model ContractAttachment {
+  id                 String            @id @default(cuid())
+  projectId          String? // 改：String → String?（OQ-1：standalone 订单也能生成合同）
+  project            Project?          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  orderId            String?
+  kind               String            @default("CONTRACT") // CONTRACT | DELIVERY_NOTE | OTHER
+  fileName           String // 台账里只有文件名
+  fileUrl            String? // 后续上传真实文件后填
+  fileSize           Int?
+  mimeType           String?
+  source             String            @default("IMPORT") // IMPORT | UPLOAD | GENERATED
+  uploadedById       String?
+  uploadedBy         User?             @relation("ContractAttachmentsUploadedBy", fields: [uploadedById], references: [id], onDelete: SetNull)
+  createdAt          DateTime          @default(now())
+  order              Order?            @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  contractDocumentId String?
+  contractDocument   ContractDocument? @relation(fields: [contractDocumentId], references: [id], onDelete: SetNull)
+
+  @@index([projectId])
+  @@index([orderId])
+  @@index([contractDocumentId])
+}
+
+// 代表提成档位配置（P3 期，ADMIN 维护）
+model RepresentativeCommissionTier {
+  id                    String         @id @default(cuid())
+  representativeId      String
+  representative        Representative @relation(fields: [representativeId], references: [id], onDelete: Cascade)
+  effectiveFrom         DateTime
+  effectiveTo           DateTime?
+  thresholdCents        Int // 超过此金额触发更高档
+  baseRateBps           Int // 基础提成万分点（200=2%）
+  bonusRateBps          Int // 超额档提成万分点
+  advanceReceiptRateBps Int // 预存款到账提成（2%=200）
+  advanceUsageBonusBps  Int // 预存款使用当月季度奖励加成（3%=300）
+  createdAt             DateTime       @default(now())
+
+  @@index([representativeId])
+}
+
+// 提成打款记录（P3 期；P1 导入落历史 W/X 快照）
+model FinanceCommission {
+  id               String         @id @default(cuid())
+  departmentSnapshot String       @default("FIELD_SALES") // 不可变部门归属快照（设计 §4.2）
+  representativeId String
+  representative   Representative @relation(fields: [representativeId], references: [id], onDelete: Cascade)
+  orderId          String?
+  order            Order?         @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  projectId        String?
+  project          Project?       @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  period           String // "2026-Q1" / "2026-03"
+  basisAmountCents Int // 计提基数
+  rateBps          Int
+  amountCents      Int // 实际提成
+  kind             String // ORDER | ADVANCE_RECEIPT | ADVANCE_USAGE | QUARTERLY_BONUS
+  status           String         @default("ACCRUED") // ACCRUED | PAID
+  paidAt           DateTime?
+  note             String?
+  createdById      String
+  createdBy        User           @relation("FinanceCommissionCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt        DateTime       @default(now())
+
+  @@index([representativeId, period])
+  @@index([orderId])
+  @@index([projectId])
+  @@index([departmentSnapshot])
+}
+
+// ─── Customer Merge Audit ──────────────────────────────────────
+
+model CustomerMergeLog {
+  id                        String                 @id @default(cuid())
+  // Phase E contract：Customer 锚点列已删除，Profile 为唯一事实源
+  sourceProfileId           String
+  sourceProfile             CrmCustomerProfile     @relation("MergeLogSourceProfile", fields: [sourceProfileId], references: [id], onDelete: Restrict)
+  targetProfileId           String
+  targetProfile             CrmCustomerProfile     @relation("MergeLogTargetProfile", fields: [targetProfileId], references: [id], onDelete: Restrict)
+  migratedCountsJson        String // { projects: N, orders: N, ... }
+  migratedIdsJson           String // { projects: [...], orders: [...], ... }
+  sourceSnapshotJson        String // 合并前 source 客户/Profile 快照（兼容旧 Customer 形状）
+  targetSnapshotJson        String // 合并前 target 客户/Profile 快照
+  // P0 修复：Profile 权威快照（docs/customer-name-alias-merge-dedup-fix-2026-07-13.md §5）
+  // Customer 快照是迁移前旧字段，可能与合并时 Profile 权威值不同；撤销时用新快照恢复 Profile，
+  // 旧日志字段为 null 时沿用旧 Customer 快照恢复逻辑，保证历史兼容。
+  sourceProfileSnapshotJson String?
+  targetProfileSnapshotJson String?
+  fieldResolutionJson       String? // 预留/legacy 字段，当前未写入；不用于 Profile 快照或 alias 迁移清单
+  profileResolution         String? // KEEP_TARGET | KEEP_SOURCE | ARCHIVED
+  orgResolution             String? // KEEP_TARGET_ORG | KEEP_SOURCE_ORG
+  orgRebindCountsJson       String? // 机构重绑定计数
+  orgRebindIdsJson          String? // 机构重绑定 ID 列表（用于回滚）
+  operatorId                String
+  operator                  User                   @relation("MergeLogsOperated", fields: [operatorId], references: [id], onDelete: Restrict)
+  reversedAt                DateTime?
+  reversedById              String?
+  reversedBy                User?                  @relation("MergeLogsReversed", fields: [reversedById], references: [id], onDelete: SetNull)
+  reverseReason             String?
+  createdAt                 DateTime               @default(now())
+  mergeTasks                CustomerMergeTask[]
+  // 本次合并在 target 新建的姓名变体记录（CrmCustomerNameAlias），用于精确撤销
+  nameAliases               CrmCustomerNameAlias[]
+
+  @@index([sourceProfileId])
+  @@index([targetProfileId])
+  @@index([operatorId])
+  @@index([createdAt])
+}
+
+/// 旧 /api/customers/** 兼容转发层审计日志（CrmCustomerProfile 主表化迁移）。
+/// 仅记录旧 API route 的调用，用于 Phase 3/4 的 burn-down；
+/// 它【记录不到】prisma.customer.findMany 这类内部直接 ORM 读取——那靠静态扫描兜底。
+model CustomerApiAuditLog {
+  id            String   @id @default(cuid())
+  path          String
+  method        String
+  callerUserId  String?
+  profileId     String? // Phase C 扩表：Profile 快照，无 FK（历史调用可能查的是迁移前旧锚点 ID）
+  fieldsTouched String? // JSON string: ["name","organizationId"]
+  forwardedTo   String?
+  statusCode    Int?
+  referer       String? // 请求 Referer header（页面来源溯源）
+  queryShape    String? // 只记 query key 名（白名单），不记值，如 "search,pageSize"
+  userAgent     String? // 请求 User-Agent header
+  uiCaller      String? // 前端 x-customer-api-caller header，如 crm-customers-org-filter
+  createdAt     DateTime @default(now())
+
+  @@index([path, method])
+  @@index([profileId])
+  @@index([createdAt])
+}
+
+model CustomerMergeTask {
+  id               String             @id @default(cuid())
+  // Phase E contract：Customer 锚点列已删除，任务对主键为 profileIdA/B
+  profileIdA       String
+  profileA         CrmCustomerProfile @relation("MergeTasksAsProfileA", fields: [profileIdA], references: [id], onDelete: Restrict)
+  profileIdB       String
+  profileB         CrmCustomerProfile @relation("MergeTasksAsProfileB", fields: [profileIdB], references: [id], onDelete: Restrict)
+  matchTier        String // EXACT | HIGH | MEDIUM
+  matchScore       Float
+  matchReasonsJson String // ["name+org exact", "miniProgramId match"]
+  fieldDiffJson    String // { name: { a, b }, organization: { a, b }, ... }
+  status           String             @default("PENDING") // PENDING | PROCESSING | MERGED | IGNORED | SUPERSEDED | STALE
+  scannedById      String?
+  scannedBy        User?              @relation("MergeTasksScanned", fields: [scannedById], references: [id], onDelete: SetNull)
+  scannedAt        DateTime?
+  resolvedById     String?
+  resolvedBy       User?              @relation("MergeTasksResolved", fields: [resolvedById], references: [id], onDelete: SetNull)
+  resolvedAt       DateTime?
+  resolutionNote   String?
+  mergeLogId       String?
+  mergeLog         CustomerMergeLog?  @relation(fields: [mergeLogId], references: [id], onDelete: SetNull)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  @@unique([profileIdA, profileIdB])
+  @@index([status])
+  @@index([matchTier])
+  @@index([profileIdA])
+  @@index([profileIdB])
+  @@index([scannedById])
+  @@index([resolvedById])
+}
+
+// 无机构客户绑定治理任务（需求 1）。
+// Phase E contract：profileId 必填唯一键；Customer 锚点列已删除。
+model CustomerOrgBindingTask {
+  id                      String             @id @default(cuid())
+  profileId               String             @unique
+  profile                 CrmCustomerProfile @relation("OrgBindingTasksProfile", fields: [profileId], references: [id], onDelete: Cascade)
+  // 脏数据快照（扫描时刻）
+  customerName            String
+  organizationText        String? // 客户的 organization 文本（可能为 null = 完全无机构）
+  organizationRawInput    String? // 用户的原始输入文本
+  // 建议匹配（扫描时自动跑一次 resolveOrganization）
+  suggestedOrganizationId String?
+  suggestedOrg            Organization?      @relation("OrgBindingSuggestedOrg", fields: [suggestedOrganizationId], references: [id], onDelete: SetNull)
+  suggestedSiteId         String?
+  suggestedSite           OrganizationSite?  @relation("OrgBindingSuggestedSite", fields: [suggestedSiteId], references: [id], onDelete: SetNull)
+  matchConfidence         String? // EXACT | CANDIDATE | UNMATCHED
+  matchReasonsJson        String?
+  // 解析结果
+  status                  String             @default("PENDING") // PENDING | PROCESSING | RESOLVED | IGNORED
+  resolvedOrganizationId  String?
+  resolvedOrg             Organization?      @relation("OrgBindingResolvedOrg", fields: [resolvedOrganizationId], references: [id], onDelete: SetNull)
+  resolvedSiteId          String?
+  resolvedSite            OrganizationSite?  @relation("OrgBindingResolvedSite", fields: [resolvedSiteId], references: [id], onDelete: SetNull)
+  resolvedById            String?
+  resolvedBy              User?              @relation("OrgBindingResolvedBy", fields: [resolvedById], references: [id], onDelete: SetNull)
+  resolvedAt              DateTime?
+  resolutionNote          String?
+  scannedById             String?
+  scannedBy               User?              @relation("OrgBindingScannedBy", fields: [scannedById], references: [id], onDelete: SetNull)
+  scannedAt               DateTime?
+  createdAt               DateTime           @default(now())
+  updatedAt               DateTime           @updatedAt
+
+  @@index([status])
+  @@index([suggestedOrganizationId])
+  @@index([resolvedOrganizationId])
+}
+
+// 客户机构文本漂移治理任务（M1b：organizationId 有值但 organization 文本与绑定机构不一致）
+model CustomerOrgTextDriftTask {
+  id        String             @id @default(cuid())
+  profileId String             @unique
+  profile   CrmCustomerProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  customerNameSnapshot String?
+  customerCodeSnapshot String?
+
+  organizationIdSnapshot       String
+  organizationSiteIdSnapshot   String?
+  organizationTextSnapshot     String?
+  organizationRawInputSnapshot String?
+  boundOrgNameSnapshot         String
+  boundOrgCodeSnapshot         String?
+
+  mismatchKind String // TEXT_DRIFT | SITE_OR_ROOM_IN_ORG_TEXT | INVALID_SITE
+  reasonJson   String?
+
+  status                 String    @default("PENDING") // PENDING | RESOLVED | IGNORED
+  resolvedAction         String? // CANONICALIZED | REBOUND_ORG | ASSIGNED_SITE | IGNORED | ALREADY_FIXED
+  resolvedOrganizationId String?
+  resolvedSiteId         String?
+  resolvedById           String?
+  resolvedBy             User?     @relation("OrgTextDriftResolvedBy", fields: [resolvedById], references: [id], onDelete: SetNull)
+  resolvedAt             DateTime?
+  resolutionNote         String?
+
+  scannedById String?
+  scannedBy   User?     @relation("OrgTextDriftScannedBy", fields: [scannedById], references: [id], onDelete: SetNull)
+  scannedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([status])
+  @@index([mismatchKind])
+  @@index([organizationIdSnapshot])
+}
+
+// ===== 合同模板与出具 =====
+
+// 合同模板（ADMIN 维护，固定变量填充）
+model ContractTemplate {
+  id                String   @id @default(cuid())
+  name              String // 模板名称，如"标准测序服务合同"
+  category          String // 合同类型，如 SEQUENCING / EQUIPMENT / NDA / OTHER
+  description       String?
+  // 模板文件存储
+  fileUrl           String // 相对路径，如 /uploads/contract-templates/{id}/template.docx
+  fileName          String // 原始文件名
+  fileSize          Int?
+  // 变量校验快照（上传时扫描出的 {xxx} 列表，JSON 字符串）
+  detectedVariables String? // JSON: ["sellerName","buyerName","totalAmount",...]
+  // 分类默认标记（同 category 下只能有一个 isDefault=true）
+  isDefault         Boolean  @default(false)
+  archived          Boolean  @default(false)
+  // 审计
+  createdById       String
+  createdBy         User     @relation("ContractTemplatesCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  updatedById       String?
+  updatedBy         User?    @relation("ContractTemplatesUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  documents ContractDocument[]
+
+  @@index([category, archived, isDefault])
+  @@index([archived])
+}
+
+// 合同业务主体（类比 ExternalOrderInvoiceRequest）
+model ContractDocument {
+  id                        String            @id @default(cuid())
+  departmentSnapshot        String            @default("FIELD_SALES") // 不可变部门归属快照（设计 §4.2）
+  // 模板关联 + 快照
+  templateId                String?
+  template                  ContractTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  snapshotTemplateUrl       String? // 生成时复制的模板快照路径
+  // 合同编号
+  contractNo                String            @unique
+  // 卖方快照（从 BillingProfile snapshot）
+  sellerName                String
+  sellerTaxId               String?
+  sellerBankName            String?
+  sellerBankAccount         String?
+  sellerAddress             String?
+  sellerPhone               String?
+  sellerLegalRepresentative String? // 法定代表人/委托代理人
+  // 买方快照（Customer/Org 取值 + 可手填）
+  buyerName                 String
+  buyerOrgName              String
+  buyerTaxId                String?
+  buyerAddress              String?
+  buyerPhone                String?
+  buyerEmail                String?
+  // 合同金额（财务口径整数分，对齐发票）
+  totalAmount               Int               @default(0) // 单位：分（元×100）
+  // 合同明细（JSON 字符串）
+  itemsJson                 String? // JSON: [{itemName, spec, quantity, unitPrice(分), amount(分), unit}]
+  // 备注
+  remark                    String?
+  // 状态
+  status                    String            @default("GENERATED") // GENERATED
+  // 审计
+  createdById               String
+  createdBy                 User              @relation("ContractDocumentsCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt                 DateTime          @default(now())
+  updatedAt                 DateTime          @updatedAt
+
+  // Agent 生成意图（一对一；手动 UI 生成时为 null）
+  generationIntentId String?                   @unique
+  generationIntent   ContractGenerationIntent? @relation(fields: [generationIntentId], references: [id])
+
+  // 多对多覆盖
+  orderCoverage OrderContractCoverage[]
+  // 文件附件（复用 ContractAttachment）
+  attachments   ContractAttachment[]
+
+  @@index([templateId])
+  @@index([createdById])
+  @@index([createdAt])
+  @@index([departmentSnapshot])
+}
+
+/// Agent 合同生成意图：与 proposal 生命周期解耦的稳定幂等键。
+/// PENDING/PROCESSING 时占用 activeDigestKey；GENERATED/EXPIRED 后清空，允许合法重复生成。
+model ContractGenerationIntent {
+  id                   String            @id @default(cuid())
+  ownerUserId          String
+  /// 规范化完整输入的 sha256（用于同 digest 复用判断）
+  inputDigest          String
+  /// 解析默认值后的完整有效输入 JSON
+  normalizedInputJson  String
+  /// 活跃唯一键：PENDING/PROCESSING 时为 `${ownerUserId}::${inputDigest}`，GENERATED/EXPIRED 时置 null
+  activeDigestKey      String?           @unique
+  status               String            @default("PENDING") // PENDING | PROCESSING | GENERATED | EXPIRED
+  /// PROCESSING 态绑定的 proposalId（fencing token）
+  processingProposalId String?
+  processingStartedAt  DateTime?
+  createdAt            DateTime          @default(now())
+  expiresAt            DateTime
+  contract             ContractDocument?
+
+  @@index([ownerUserId, inputDigest, status])
+}
+
+// 合同↔订单 多对多覆盖（类比 OrderInvoiceCoverage）
+model OrderContractCoverage {
+  id         String           @id @default(cuid())
+  contract   ContractDocument @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  contractId String
+  order      Order            @relation("OrderContractCoverages", fields: [orderId], references: [id], onDelete: Cascade)
+  orderId    String
+  createdAt  DateTime         @default(now())
+
+  @@unique([contractId, orderId])
+  @@index([orderId])
+  @@index([contractId])
+}
+
+// ============================================================
+// 商务邮件通知（见 docs/business-email-notification-design-2026-06-26.md）
+// ============================================================
+
+// 项目周期节点（milestone）
+model Milestone {
+  id                String    @id @default(cuid())
+  project           Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId         String
+  name              String // 节点名称，如"样本送检""报告交付"
+  type              String    @default("CUSTOM") // CUSTOM | SAMPLE | SEQUENCING | REPORT | DELIVERY | ...
+  sortOrder         Int       @default(0)
+  dueDate           DateTime? // 计划到期日
+  doneAt            DateTime? // 实际完成时间
+  completedNotified Boolean   @default(false) // 邮件 D（逾期后完成通知）确已发出（权威标志，重开时重置）
+  note              String?
+
+  // 通知配置
+  notifyBeforeHours Int? // 到期前 N 小时提醒项目成员（null=不提前提醒）
+  contacts          MilestoneContact[] // 该节点催办的外部部门收件人
+
+  // 催办锁机（复用 Ticket 锁机结构）
+  nudgeStatus     String?   @default("PENDING") // PENDING | PROCESSING | SENT | FAILED | DONE
+  nudgeLockedAt   DateTime?
+  nudgeLastSentAt DateTime? // 最近一次催办时间（手动+自动共用，用于 24h 去重 + 1h 手动限速）
+  nudgeError      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId])
+  @@index([dueDate, nudgeStatus])
+}
+
+// 节点 ↔ 外部收件人
+model MilestoneContact {
+  id                String          @id @default(cuid())
+  milestone         Milestone       @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  milestoneId       String
+  externalContact   ExternalContact @relation(fields: [externalContactId], references: [id])
+  externalContactId String
+  suppressUntil     DateTime? // 临时静默截止时间，null=不静默
+
+  @@unique([milestoneId, externalContactId])
+  @@index([milestoneId])
+}
+
+// 外部部门通讯录
+model ExternalContact {
+  id          String   @id @default(cuid())
+  name        String // 部门/联系人名称，如"财务部""测序合作组"
+  email       String // 收件邮箱
+  department  String? // 所属部门（可选，便于分组；财务部催办用固定值 FINANCE）
+  description String?
+  ccEmails    String? // 抄送邮箱（逗号分隔多个）
+  enabled     Boolean  @default(true) // 临时禁用开关（false=不参与任何发送）
+  archived    Boolean  @default(false) // 软删除
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  milestones MilestoneContact[]
+
+  @@index([archived, enabled])
+}
+
+// 归档就绪提醒去重
+model ProjectArchiveNotice {
+  id         String    @id @default(cuid())
+  project    Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId  String
+  notifiedAt DateTime  @default(now()) // 何时发出"可归档"提醒
+  archivedAt DateTime? // 何时真正归档（归档邮件发出时回填）
+
+  @@unique([projectId]) // 一个项目最多一条"可归档"提醒
+}
+
+// 商务邮件发送历史（仅外部收件人邮件 B/C/D/E/F/F2；成员通知 A/G 见站内通知中心）
+// 见 docs/business-email-notification-design-2026-06-26.md §9 第二期 item 4
+model BusinessEmailLog {
+  id          String   @id @default(cuid())
+  type        String // BUSINESS_EMAIL_TYPE 之一
+  toEmail     String // 主收件邮箱
+  toName      String? // 收件人/部门名称
+  ccEmails    String? // 抄送邮箱（逗号分隔，快照）
+  subject     String // 邮件标题
+  status      String // sent | failed
+  error       String? // 失败原因（status=failed 时）
+  contactId   String? // 关联 ExternalContact id（若有）
+  projectId   String? // 关联项目（节点类邮件）
+  milestoneId String? // 关联节点（节点类邮件）
+  invoiceId   String? // 关联发票申请（发票类邮件）
+  // 下单代表通知（H）：聚合邮件按订单逐条落日志（沿用 projectId/milestoneId 的纯 String 无 FK 惯例）。
+  orderId          String? // 关联订单（下单通知）
+  representativeId String? // 收件代表（下单通知）
+  createdAt   DateTime @default(now())
+
+  @@index([type, createdAt])
+  @@index([status, createdAt])
+  @@index([createdAt])
+  @@index([orderId])
+  @@index([representativeId])
+}
+
+// ─── Order Import Session (导入前确认会话) ───────────────────
+// 见 docs/order-import-crm-confirmation-design-2026-06-29.md §6
+model OrderImportSession {
+  id             String   @id @default(cuid())
+  source         String
+  sourceRemark   String?
+  category       String   @default("UNKNOWN")
+  status         String   @default("DRAFT") // DRAFT / REVIEWING / READY / COMMITTED / ABORTED / FAILED
+  fileName       String?
+  rawColumnsJson String?
+  summaryJson    String?
+  createdById    String
+  // 顺序导入升级（docs/agent-sequential-order-import-upgrade-design-2026-07-21.md §4.2）：
+  // 页面与 Agent 共用同一会话。inputChannel 标记来源渠道；stagingFileId/agentRunId/parserKey
+  // 仅用于会话恢复与展示，createdById 仍是权限主权。
+  inputChannel   String   @default("PAGE") // PAGE | AGENT
+  stagingFileId  String?
+  agentRunId     String?
+  parserKey      String? // ORDER_GENERIC | PINGOODMICE
+  rowCount       Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  createdBy User             @relation("OrderImportSessionCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  rows      OrderImportRow[]
+
+  @@index([createdById, createdAt])
+  @@index([status])
+  @@index([agentRunId])
+}
+
+model OrderImportRow {
+  id        String @id @default(cuid())
+  sessionId String
+  rowNo     Int
+
+  rawPayloadJson        String
+  normalizedPayloadJson String
+
+  // 完整状态集合（与设计文档 §4.3 行状态一致）：
+  //   解析/标准化失败：PARSE_FAILED
+  //   待确认（阻塞 commit）：PENDING、AUTO_SUGGESTED、AMBIGUOUS、NO_MATCH、REPRESENTATIVE_MISSING
+  //   决策就绪（可生成 proposal）：CONFIRMED_EXISTING、CONFIRMED_CREATE
+  //   等待确认：PROPOSED（唯一 PENDING proposal 已持久化，proposalId 必须非空）
+  //   执行租约：IMPORTING（proposal 已确认，单行事务正在执行）
+  //   终态：IMPORTED、DROPPED、FAILED
+  // DROPPED 是"被用户显式剔除"的统一终态，原状态 + 原因记入 finalError。
+  reviewStatus String @default("PENDING")
+
+  suggestedProfileId String?
+  suggestedScore     Float?
+  suggestedReason    String?
+  // candidateListJson 不持久化（按需重算），见设计文档 §6.4.1
+
+  decisionType            String? // USE_SUGGESTION / PICK_EXISTING / CREATE_NEW
+  confirmedProfileId      String?
+  createCustomerDraftJson String?
+
+  finalOrderId String?
+  finalError   String?
+
+  // 顺序导入升级（§4.3）：单行 proposal 生命周期与字段来源审计。
+  // version 每次修改标准化数据、客户决定或 proposal 生命周期时递增，用于乐观并发控制。
+  version             Int       @default(1)
+  proposalId          String?
+  claimRunId          String?
+  claimStartedAt      DateTime?
+  fieldProvenanceJson String? // 字段来源：FILE | USER_MESSAGE | VERIFIED_CONTEXT | CRM_SEARCH | DERIVED
+  updatePlanJson      String? // CREATE / UPDATE / CONFLICT 计划与 diff 快照
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  session          OrderImportSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  suggestedProfile CrmCustomerProfile? @relation("ImportRowSuggestedProfile", fields: [suggestedProfileId], references: [id], onDelete: SetNull)
+  confirmedProfile CrmCustomerProfile? @relation("ImportRowConfirmedProfile", fields: [confirmedProfileId], references: [id], onDelete: SetNull)
+
+  @@unique([sessionId, rowNo])
+  @@index([sessionId, reviewStatus])
+  @@index([suggestedProfileId])
+  @@index([confirmedProfileId])
+  @@index([proposalId])
+}
+
+// ─────────────────────────────────────────────────────────────────
+// 供应链管理与成本核算（设计文档 supply-costing-architecture-design-2026-07-10.md）
+// Phase 0-4 模型。金额一律 Int 分（元×100）。枚举使用 String + 应用层常量。
+// ─────────────────────────────────────────────────────────────────
+
+// 标准服务项字典（Phase 0）
+model ServiceCatalog {
+  id          String   @id @default(cuid())
+  serviceKey  String   @unique
+  name        String
+  category    String   @default("SERVICE") // SERVICE | PRODUCT | MIXED | OTHER
+  domain      String? // SEQUENCING | LIBRARY_PREP | SPATIAL | BIOINFORMATICS | LOGISTICS | OTHER
+  aliasesJson String?
+  description String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([category])
+  @@index([domain])
+  @@index([active])
+}
+
+// 订单行到产品目录的绑定（Phase 1；目标重命名 OrderLineCatalogBinding）。
+// productSkuId 是当前目录身份的唯一事实源；serviceKey 仅 legacy 兼容期保留。
+// 兼容期不变量：productSkuId IS NOT NULL OR serviceKey IS NOT NULL（应用层 + 审计脚本守护）。
+model OrderLineServiceMapping {
+  id            String    @id @default(cuid())
+  orderLineId   String    @unique
+  orderLine     OrderLine @relation(fields: [orderLineId], references: [id], onDelete: Cascade)
+  productSkuId  String?
+  productSku    ProductSku? @relation(fields: [productSkuId], references: [id], onDelete: Restrict)
+  serviceKey    String? // legacy 快照，最终不再作为事实源
+  confidence    Float?
+  source        String    @default("MANUAL") // MANUAL | RULE | IMPORT | AI | HISTORY | MIGRATION_EXACT | AGENT_DRAFT
+  matchedText   String?
+  note          String?
+  confirmedById String?
+  confirmedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([productSkuId])
+  @@index([serviceKey])
+  @@index([source])
+}
+
+// 供应商主档（Phase 1）
+model Supplier {
+  id             String  @id @default(cuid())
+  name           String
+  normalizedName String
+  shortName      String?
+  status         String  @default("ACTIVE") // ACTIVE | PAUSED | BLACKLISTED
+  category       String? // SEQUENCING | LIBRARY_PREP | SPATIAL | LOGISTICS | OTHER
+  region         String?
+
+  contactName String?
+  phone       String?
+  email       String?
+  wechat      String?
+  address     String?
+  contactNote String?
+
+  paymentCycle         String? // PREPAID | NET_15 | NET_30 | NET_60 | MONTHLY | CUSTOM
+  defaultLeadDays      Int?
+  quoteUpdateCycleDays Int? // 默认报价更新周期；为空时走系统默认或按服务项规则
+  lastQuoteUpdatedAt   DateTime?
+  nextQuoteRefreshAt   DateTime?
+  rating               Int?
+  qualityScore         Float?
+  deliveryScore        Float?
+  priceScore           Float?
+
+  tagsJson       String?
+  preferenceNote String?
+  riskNote       String?
+  archived       Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  contacts        SupplierContact[]
+  capabilities    SupplierCapability[]
+  quotes          SupplierQuote[]
+  inquiries       SupplierInquiry[]
+  supplyPlanLines SupplyPlanLine[]
+  costEntries     CostEntry[]
+  payables        FinancePayable[]
+  payments        FinancePayment[]
+
+  @@index([normalizedName])
+  @@index([status])
+  @@index([category])
+  @@index([nextQuoteRefreshAt])
+  @@index([archived])
+}
+
+// 供应商联系人（Phase 1）
+model SupplierContact {
+  id         String   @id @default(cuid())
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  name       String
+  role       String? // 销售、技术支持、财务、售后、负责人
+  phone      String?
+  email      String?
+  wechat     String?
+  qq         String?
+  isPrimary  Boolean  @default(false)
+  active     Boolean  @default(true)
+  note       String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([supplierId])
+  @@index([isPrimary])
+  @@index([active])
+}
+
+// 供应商能力范围（Phase 1）
+model SupplierCapability {
+  id         String   @id @default(cuid())
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  productSkuId String?
+  productSku   ProductSku? @relation(fields: [productSkuId], references: [id], onDelete: Restrict)
+  supplierSkuCode String?
+  serviceKey String? // legacy 标准服务项；兼容期 productSkuId IS NOT NULL OR serviceKey IS NOT NULL
+  itemName   String
+  spec       String?
+  sampleType String?
+  species    String?
+  platform   String?
+  active     Boolean  @default(true)
+  note       String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([supplierId])
+  @@index([productSkuId])
+  @@index([serviceKey])
+  @@index([active])
+}
+
+// 供应商报价表（Phase 1）—— 价格事实，不等同于成本台账
+model SupplierQuote {
+  id          String   @id @default(cuid())
+  supplierId  String
+  supplier    Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  productSkuId String?
+  productSku   ProductSku? @relation(fields: [productSkuId], references: [id], onDelete: Restrict)
+  supplierSkuCode String?
+  serviceKey  String? // legacy；兼容期 productSkuId IS NOT NULL OR serviceKey IS NOT NULL
+  itemName    String
+  spec        String?
+  unit        String?
+  minQuantity Float?
+
+  listPrice       Int // 目录价，分
+  quotedPrice     Int // 当前报价，分
+  negotiatedPrice Int? // 已议价报价，分
+  floorPriceHint  Int? // 底价线索，敏感字段（API select 层控制可见性）
+  discountRate    Float?
+
+  leadDays        Int?
+  validFrom       DateTime?
+  validTo         DateTime?
+  lastUpdatedAt   DateTime? // 业务上的价格更新时间
+  updateCycleDays Int? // 本报价建议更新周期；为空时回退供应商 quoteUpdateCycleDays
+  nextRefreshAt   DateTime? // 可由 lastUpdatedAt + updateCycleDays 推导后落库
+  status          String    @default("ACTIVE") // ACTIVE | EXPIRED | ARCHIVED
+  source          String    @default("MANUAL") // MANUAL | IMPORT | NEGOTIATION | ORDER_HISTORY
+  sourceRef       String?
+  remark          String?
+  createdById     String?
+  createdBy       User?     @relation("SupplierQuoteCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([supplierId])
+  @@index([productSkuId])
+  @@index([serviceKey])
+  @@index([status])
+  @@index([validTo])
+  @@index([nextRefreshAt])
+}
+
+// 询价和还价记录（Phase 1）
+model SupplierInquiry {
+  id               String   @id @default(cuid())
+  departmentSnapshot String @default("FIELD_SALES") // 不可变部门归属快照（设计 §4.2）
+  supplierId       String
+  supplier         Supplier @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  orderId          String?
+  order            Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  orderLineId      String?
+  quoteId          String?
+  status           String   @default("OPEN") // OPEN | RESPONDED | CLOSED | LOST
+  requestedItem    String
+  requestedSpec    String?
+  quantity         Float?
+  targetPrice      Int? // 分
+  responsePrice    Int? // 分
+  finalPrice       Int? // 分
+  responseLeadDays Int?
+  occurredAt       DateTime @default(now())
+  contactMethod    String?
+  note             String?
+  rawText          String?
+  createdById      String
+  createdBy        User     @relation("SupplierInquiryCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([supplierId])
+  @@index([orderId])
+  @@index([quoteId])
+  @@index([status])
+  @@index([departmentSnapshot])
+}
+
+// 订单供应方案（Phase 2）—— 供应链决策结果
+model SupplyPlan {
+  id               String    @id @default(cuid())
+  orderId          String
+  order            Order     @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  name             String?
+  status           String    @default("DRAFT") // DRAFT | QUOTED | NEGOTIATING | SELECTED | LOCKED | SUPERSEDED | CANCELLED
+  planType         String    @default("BALANCED") // LOWEST_COST | FASTEST | BALANCED | MANUAL
+  totalQuotedCost  Int       @default(0) // 分
+  totalLockedCost  Int? // 分
+  expectedLeadDays Int?
+  scoreJson        String?
+  note             String?
+  selectedAt       DateTime?
+  lockedAt         DateTime?
+  createdById      String
+  createdBy        User      @relation("SupplyPlanCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  lines SupplyPlanLine[]
+
+  @@index([orderId])
+  @@index([status])
+  @@index([createdById])
+}
+
+// 供应方案明细（Phase 2）—— 支持多行不同供应商混合承接
+model SupplyPlanLine {
+  id          String     @id @default(cuid())
+  planId      String
+  plan        SupplyPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  orderLineId String?
+  orderLine   OrderLine? @relation(fields: [orderLineId], references: [id], onDelete: SetNull)
+  supplyRequirementId String?
+  supplyRequirement   SupplyRequirement? @relation(fields: [supplyRequirementId], references: [id], onDelete: SetNull)
+  // INTERNAL BOM 组件无供应商报价；legacy/外采行必须有 supplierId
+  supplierId  String?
+  supplier    Supplier?  @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  quoteId     String?
+  inquiryId   String?
+
+  productSkuId String?
+  productSku   ProductSku? @relation(fields: [productSkuId], references: [id], onDelete: Restrict)
+  // BOM 组件使用组件自身编号；DIRECT 用销售 SKU；legacy 可为空
+  productCodeSnapshot String?
+  skuCodeSnapshot     String?
+  // legacy serviceKey 快照；锁定时与报价 serviceKey 核对
+  serviceKeySnapshot  String?
+  itemName     String
+  spec         String?
+  unit         String?
+  quantity     Float?
+  unitCost     Int // 分
+  amount       Int // 分；amount === Math.round(quantity * unitCost)
+  discountRate Float?
+  leadDays     Int?
+  // 候选生成时的 definitionHash 快照；锁定时与 requirement / 当前 BOM 三方比较
+  definitionHash String?
+  // BOM 组件角色快照：PROCUREMENT | INTERNAL | LOGISTICS | OPTIONAL；DIRECT/legacy 为 null
+  componentRole  String?
+  note         String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([planId])
+  @@index([orderLineId])
+  @@index([supplyRequirementId])
+  @@index([supplierId])
+  @@index([quoteId])
+}
+
+// 成本核算事实（Phase 1）—— 可来自供应方案、手动录入、规则、导入或历史兼容
+model CostEntry {
+  id String @id @default(cuid())
+  departmentSnapshot String @default("FIELD_SALES") // 不可变部门归属快照（设计 §4.2）
+
+  subjectType String // ORDER | PROJECT | CUSTOMER | MANUAL
+  orderId     String?
+  order       Order?              @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  projectId   String?
+  project     Project?            @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  profileId   String?
+  profile     CrmCustomerProfile? @relation("ProfileCostEntries", fields: [profileId], references: [id], onDelete: SetNull)
+
+  bucket            String // REAL | CIRCULATION | TAX
+  costType          String // PROCUREMENT | SUPPLIER | EXPERIMENT | LABOR | LOGISTICS | COMMISSION | PLATFORM | PLATFORM_FEE | MARKETING | ENTERTAINMENT | REFUND | TAX | PROJECT_COST | OTHER
+  status            String  @default("ESTIMATED") // ESTIMATED | QUOTED | COMMITTED | ACTUAL | SETTLED | CANCELLED
+  amount            Int // 分
+  currency          String  @default("CNY")
+  effectiveGroupKey String? // 同一成本来源的版本分组；聚合时每组只取最高确定性有效版本
+
+  supplierId       String?
+  supplier         Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  quoteId          String?
+  supplyPlanId     String?
+  supplyPlanLineId String?
+
+  // Phase 3：行级与 SKU 维度。SUPPLY_PLAN 成本必须有 orderId+orderLineId+productSkuId+supplyPlanLineId。
+  orderLineId         String?
+  productSkuId        String?
+  productSku          ProductSku? @relation(fields: [productSkuId], references: [id], onDelete: Restrict)
+  supplyRequirementId String?
+  supplyRequirement   SupplyRequirement? @relation(fields: [supplyRequirementId], references: [id], onDelete: SetNull)
+  productCodeSnapshot String?
+  skuCodeSnapshot     String?
+
+  taxRate       Float?
+  taxIncluded   Boolean?
+  taxMode       String? // TAX_EXCLUSIVE | TAX_INCLUSIVE | TAX_ONLY
+  occurredAt    DateTime  @default(now())
+  expectedPayAt DateTime?
+  settledAt     DateTime?
+
+  sourceType  String   @default("MANUAL") // MANUAL | SUPPLY_PLAN | TAX_RULE | CIRCULATION_RULE | IMPORT | LEGACY_FINANCE_COST | PROJECT_BUDGET_COST | ORDER_INITIAL_COST | CONTRACT_IMPORT | COMMISSION
+  sourceKey   String?
+  remark      String?
+  createdById String
+  createdBy   User     @relation("CostEntryCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  payableLinks FinancePayable[]
+
+  @@unique([sourceType, sourceKey])
+  @@index([subjectType])
+  @@index([orderId])
+  @@index([projectId])
+  @@index([profileId])
+  @@index([bucket])
+  @@index([status])
+  @@index([supplierId])
+  @@index([effectiveGroupKey])
+  @@index([sourceType])
+  @@index([orderLineId])
+  @@index([productSkuId])
+  @@index([supplyRequirementId])
+  @@index([departmentSnapshot])
+}
+
+// 成本摘要缓存（Phase 1）—— 对外模块优先读这个
+model CostSnapshot {
+  id          String @id @default(cuid())
+  subjectType String // ORDER | PROJECT | CUSTOMER
+  subjectId   String
+
+  realCost        Int @default(0) // 分
+  circulationCost Int @default(0) // 分
+  taxCost         Int @default(0) // 分
+  fullCost        Int @default(0) // 分
+
+  estimatedCost Int @default(0) // 分
+  quotedCost    Int @default(0) // 分
+  committedCost Int @default(0) // 分
+  actualCost    Int @default(0) // 分
+  settledCost   Int @default(0) // 分
+
+  sourceHash   String?
+  recomputedAt DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([subjectType, subjectId])
+}
+
+// 成本规则（Phase 2.5）—— 平台费、提成、固定手续费等
+model CostRule {
+  id          String   @id @default(cuid())
+  name        String
+  bucket      String // CIRCULATION | TAX
+  costType    String // COMMISSION | PLATFORM_FEE | TAX | OTHER
+  subjectType String // ORDER | PROJECT | CUSTOMER
+  trigger     String // ORDER_CONFIRMED | ORDER_CLOSED | PLAN_LOCKED | MANUAL_RECOMPUTE
+  formulaType String // FIXED_AMOUNT | PERCENT_OF_REVENUE | PERCENT_OF_REAL_COST
+  rate        Float?
+  amount      Int? // 分（FIXED_AMOUNT 时）
+  active      Boolean  @default(true)
+  priority    Int      @default(0)
+  remark      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([bucket])
+  @@index([trigger])
+  @@index([active])
+  @@index([subjectType])
+}
+
+// 财务供应商应付（Phase 3）—— 只记录真实要付的钱
+model FinancePayable {
+  id              String     @id @default(cuid())
+  departmentSnapshot String   @default("FIELD_SALES") // 不可变部门归属快照（设计 §4.2）
+  supplierId      String
+  supplier        Supplier   @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  orderId         String?
+  order           Order?     @relation("FinancePayableOrder", fields: [orderId], references: [id], onDelete: SetNull)
+  projectId       String?
+  costEntryId     String?
+  costEntry       CostEntry? @relation(fields: [costEntryId], references: [id], onDelete: SetNull)
+  supplyPlanId    String?
+  payableGroupKey String? // 允许按供应商+订单/项目/方案合并应付
+
+  amount      Int // 分
+  paidAmount  Int       @default(0) // 分（缓存，事实源为分摊表聚合）
+  status      String    @default("UNPAID") // UNPAID | PARTIAL | PAID | OVERPAID | CANCELLED
+  dueAt       DateTime?
+  payableAt   DateTime?
+  note        String?
+  createdById String
+  createdBy   User      @relation("FinancePayableCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  sourceType  String    @default("MANUAL") // MANUAL | COST_ENTRY | SUPPLY_PLAN
+  sourceKey   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  allocations FinancePaymentAllocation[]
+
+  @@unique([sourceType, sourceKey])
+  @@index([supplierId])
+  @@index([orderId])
+  @@index([projectId])
+  @@index([costEntryId])
+  @@index([supplyPlanId])
+  @@index([payableGroupKey])
+  @@index([status])
+  @@index([departmentSnapshot])
+}
+
+// 财务供应商付款流水（Phase 3）
+model FinancePayment {
+  id          String   @id @default(cuid())
+  departmentSnapshot String @default("FIELD_SALES") // 不可变部门归属快照（设计 §4.2）
+  supplierId  String
+  supplier    Supplier @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  amount      Int // 分
+  paidAt      DateTime @default(now())
+  method      String?
+  voucherNo   String?
+  voucherUrl  String?
+  remark      String?
+  createdById String
+  createdBy   User     @relation("FinancePaymentCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  allocations FinancePaymentAllocation[]
+
+  @@index([supplierId])
+  @@index([paidAt])
+  @@index([departmentSnapshot])
+}
+
+// 供应商付款分摊表（Phase 3）—— 支持一笔付款核销多笔应付
+model FinancePaymentAllocation {
+  id          String         @id @default(cuid())
+  paymentId   String
+  payment     FinancePayment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  payableId   String
+  payable     FinancePayable @relation(fields: [payableId], references: [id], onDelete: Cascade)
+  amount      Int // 分
+  createdById String
+  createdBy   User           @relation("FinancePaymentAllocationCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt   DateTime       @default(now())
+
+  @@unique([paymentId, payableId])
+  @@index([paymentId])
+  @@index([payableId])
+}
+
+/// CRM 客户偏好——人工标注 + 自动洞察统一存储。
+/// 挂在 CrmCustomerProfile 下，不回写 Customer 旧业务字段。
+/// sourceType 区分来源（MANUAL / ORDER_RULE / INTERACTION_AI / COMPLAINT / SYSTEM）。
+/// @@unique([sourceType, key]) 保证同来源同 key 幂等（自动洞察重算 / 客诉摘要派生）。
+model CrmCustomerPreference {
+  id               String             @id @default(cuid())
+  departmentSnapshot String           @default("FIELD_SALES") // 不可变部门归属快照（设计 §4.2）
+  profile          CrmCustomerProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profileId        String
+  category         String // AVAILABILITY | CONTACT_STYLE | NEGOTIATION | DISCOUNT_PROFILE | PRODUCT_INTEREST | ORDER_BEHAVIOR | LOGISTICS | DECISION | COMPLAINT_SUMMARY | OTHER
+  key              String // 稳定机器键，用于自动规则和聚合
+  label            String // 展示标题
+  valueText        String? // 人类可读内容
+  valueJson        String? // 结构化值（JSON 字符串），供自动规则使用
+  sourceType       String // MANUAL | ORDER_RULE | INTERACTION_AI | COMPLAINT | SYSTEM
+  confidence       Float? // 自动洞察置信度 0-1
+  evidenceType     String? // 证据类型（ORDER / INTERACTION / COMPLAINT 等）
+  evidenceId       String? // 证据 ID（软引用）
+  status           String             @default("ACTIVE") // ACTIVE | DISMISSED | SUPERSEDED | ARCHIVED
+  reviewStatus     String             @default("PENDING") // PENDING | ACCEPTED | REJECTED（仅自动洞察有意义）
+  reviewedByUserId String?
+  reviewedByUser   User?              @relation("CrmPreferenceReviewedBy", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+  reviewedAt       DateTime?
+  pinned           Boolean            @default(false) // 是否置顶
+  note             String? // 内部备注
+  createdById      String
+  createdBy        User               @relation("CrmPreferenceCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  updatedByUserId  String?
+  updatedByUser    User?              @relation("CrmPreferenceUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: SetNull)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  @@unique([profileId, sourceType, key])
+  @@index([profileId, status, pinned])
+  @@index([sourceType, key])
+  @@index([category])
+  @@index([departmentSnapshot])
+}
+
+/// CRM 客诉工单——独立生命周期，不只是一条偏好备注。
+/// 创建/解决时联动 CrmFollowUpTask（sourceType = CRM_COMPLAINT）。
+/// 关闭后派生 COMPLAINT_SUMMARY 偏好（key = complaint:<id>:summary，幂等）。
+model CrmComplaint {
+  id                   String             @id @default(cuid())
+  departmentSnapshot   String             @default("FIELD_SALES") // 不可变部门归属快照（设计 §4.2）
+  profile              CrmCustomerProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  profileId            String
+  title                String
+  description          String?
+  category             String // DELIVERY_DELAY | QUALITY | PRICE | COMMUNICATION | LOGISTICS | INVOICE_PAYMENT | AFTER_SALES | OTHER
+  severity             String // LOW | MEDIUM | HIGH | CRITICAL
+  status               String             @default("OPEN") // OPEN | IN_PROGRESS | WAITING_CUSTOMER | RESOLVED | CLOSED | CANCELLED
+  ownerUserId          String?
+  ownerUser            User?              @relation("CrmComplaintOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  sourceType           String? // 客诉来源（INTERACTION / ORDER / MANUAL 等）
+  sourceId             String? // 来源 ID
+  relatedOrderId       String?
+  relatedOrder         Order?             @relation("CrmComplaintOrder", fields: [relatedOrderId], references: [id], onDelete: SetNull)
+  relatedProjectId     String?
+  relatedProject       Project?           @relation("CrmComplaintProject", fields: [relatedProjectId], references: [id], onDelete: SetNull)
+  relatedInteractionId String?
+  relatedInteraction   CrmInteraction?    @relation("CrmComplaintInteraction", fields: [relatedInteractionId], references: [id], onDelete: SetNull)
+  expectedResolutionAt DateTime?
+  resolvedAt           DateTime?
+  closedAt             DateTime?
+  resolutionSummary    String?
+  customerSatisfied    Boolean?
+  createdById          String
+  createdBy            User               @relation("CrmComplaintCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  events CrmComplaintEvent[]
+
+  @@index([profileId, status])
+  @@index([status, severity])
+  @@index([ownerUserId, status])
+  @@index([relatedOrderId])
+  @@index([relatedProjectId])
+  @@index([departmentSnapshot])
+}
+
+/// 客诉处理事件流水——状态变化/处理记录/负责人变化/回访结论。
+model CrmComplaintEvent {
+  id          String       @id @default(cuid())
+  complaint   CrmComplaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  complaintId String
+  eventType   String // COMMENT | STATUS_CHANGED | ASSIGNED | CUSTOMER_CONTACTED | RESOLUTION_PROPOSED | RESOLVED | REOPENED | CLOSED
+  fromStatus  String?
+  toStatus    String?
+  content     String?
+  createdById String
+  createdBy   User         @relation("CrmComplaintEventCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt   DateTime     @default(now())
+
+  @@index([complaintId, createdAt])
+}
+
+// ─────────────────────────────────────────────────────────────────
+// 产品目录与订单—供应链—成本一体化（2026-07-27）
+// docs/product-catalog-order-supply-cost-integration-design-2026-07-27.md
+// 金额一律 Int 分（元×100）。枚举使用 String + 应用层常量。
+// ─────────────────────────────────────────────────────────────────
+
+/// 通用业务编号序列（原子 upsert，保证 PRD-/SKU- 并发安全）。
+model BusinessSequence {
+  key         String   @id // PRODUCT | PRODUCT_SKU | 后续可扩展 ORDER/PROJECT
+  currentValue Int     @default(0)
+  updatedAt   DateTime @updatedAt
+}
+
+/// 产品/服务族（SPU）。回答"这是什么产品"。
+model Product {
+  id          String   @id @default(cuid())
+  productCode String   @unique // PRD-000001，一经使用不可修改
+  name        String
+  kind        String   @default("SERVICE") // SERVICE | PHYSICAL | DIGITAL | COMPOSITE | OTHER
+  domain      String? // SEQUENCING | LIBRARY_PREP | SPATIAL | BIOINFORMATICS | LOGISTICS | OTHER
+  status      String   @default("DRAFT") // DRAFT | ACTIVE | RETIRED | MERGED
+  description String?
+  createdById String
+  createdBy   User     @relation("ProductCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  skus        ProductSku[]
+  aliases     ProductAlias[]
+  changeLogs  ProductChangeLog[]
+
+  @@index([kind, status])
+  @@index([domain, status])
+}
+
+/// 具体可售/可采购规格（内部货号）。回答"实际卖/买的是哪个规格和货号"。
+model ProductSku {
+  id                String   @id @default(cuid())
+  productId         String
+  product           Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  skuCode           String   @unique // SKU-000001，一经使用不可修改
+  name              String
+  spec              String?
+  standardUnit      String
+  sellable          Boolean  @default(true)
+  purchasable       Boolean  @default(true)
+  fulfillmentMode   String   @default("EXTERNAL_OR_INTERNAL") // EXTERNAL_OR_INTERNAL | INTERNAL_ONLY | EXTERNAL_ONLY
+  defaultSalesPrice Int? // 分，仅默认值，不覆盖订单成交价
+  status            String   @default("DRAFT") // DRAFT | ACTIVE | RETIRED | MERGED
+  replacementSkuId  String? // MERGED 时指向替代 SKU（不建 FK，避免环）
+  createdById       String
+  createdBy         User     @relation("ProductSkuCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // 反向关系：订单行绑定、供应商能力/报价、BOM 组件、供应需求、方案行、成本、变更日志
+  orderLineMappings   OrderLineServiceMapping[]
+  supplierCapabilities SupplierCapability[]
+  supplierQuotes      SupplierQuote[]
+  parentComponents    ProductSkuComponent[] @relation("ProductSkuComponentParent")
+  childComponents     ProductSkuComponent[] @relation("ProductSkuComponentChild")
+  supplyRequirements  SupplyRequirement[]
+  supplyPlanLines     SupplyPlanLine[]
+  costEntries         CostEntry[]
+
+  @@index([productId, status])
+  @@index([sellable, status])
+  @@index([purchasable, status])
+}
+
+/// 产品别名（用于历史自由文本匹配、供应商货号归一、搜索命中）。
+model ProductAlias {
+  id              String  @id @default(cuid())
+  productId       String
+  product         Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  alias           String
+  normalizedAlias String
+  source          String  @default("MANUAL") // MANUAL | IMPORT | LEGACY_SERVICE_KEY | SUPPLIER_SKU_CODE
+
+  @@unique([productId, normalizedAlias])
+  @@index([normalizedAlias])
+}
+
+/// BOM / 履约组成（Phase 2）。普通 SKU 无组件时直接生成 1 条供应需求；
+/// 组合 SKU 按组件展开多条。INTERNAL 组件进内部成本，不强制供应商报价。
+model ProductSkuComponent {
+  id             String     @id @default(cuid())
+  parentSkuId    String
+  parentSku      ProductSku @relation("ProductSkuComponentParent", fields: [parentSkuId], references: [id], onDelete: Cascade)
+  componentSkuId String
+  componentSku   ProductSku @relation("ProductSkuComponentChild", fields: [componentSkuId], references: [id], onDelete: Restrict)
+  quantity       Float      @default(1)
+  role           String     @default("PROCUREMENT") // PROCUREMENT | INTERNAL | LOGISTICS | OPTIONAL
+  lossRate       Float?
+  active         Boolean    @default(true)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  @@unique([parentSkuId, componentSkuId, role])
+  @@index([parentSkuId, active])
+  @@index([componentSkuId])
+}
+
+/// 产品/SKU 变更日志（字段级 before/after，便于审计和回溯）。
+model ProductChangeLog {
+  id          String   @id @default(cuid())
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  skuId       String?
+  action      String // PRODUCT_CREATED | PRODUCT_UPDATED | PRODUCT_RETIRED | SKU_CREATED | SKU_UPDATED | SKU_RETIRED | SKU_MERGED | ALIAS_ADDED | ALIAS_REMOVED
+  field       String?
+  beforeValue String?
+  afterValue  String?
+  note        String?
+  createdById String
+  createdBy   User     @relation("ProductChangeLogCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt   DateTime @default(now())
+
+  @@index([productId, createdAt])
+  @@index([skuId])
+  @@index([action])
+}
+
+/// 供应需求（Phase 2）。订单行或 BOM 展开的采购需求，是 SupplyPlanLine 的上游。
+model SupplyRequirement {
+  id              String    @id @default(cuid())
+  orderId         String
+  order           Order     @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  orderLineId     String
+  orderLine       OrderLine @relation(fields: [orderLineId], references: [id], onDelete: Cascade)
+  productSkuId    String
+  productSku      ProductSku @relation(fields: [productSkuId], references: [id], onDelete: Restrict)
+  source          String    @default("DIRECT") // DIRECT | BOM
+  // BOM 展开路径，含角色以区分同 SKU 多 role：root>{componentSkuId}:{role}；DIRECT 为 null
+  componentPath   String?
+  // BOM 组件角色：PROCUREMENT | INTERNAL | LOGISTICS | OPTIONAL；DIRECT 为 null
+  componentRole   String?
+  // review #4：BOM 需求的 productSkuId 是组件 SKU，但 definitionHash 基于根销售 SKU 的 BOM。
+  // 锁定复算时需读根 SKU 的 BOM，故持久化 rootSkuId。DIRECT 需求 rootSkuId = productSkuId。
+  rootSkuId       String?
+  quantity        Float
+  unit            String
+  status          String    @default("OPEN") // OPEN | PLANNED | LOCKED | CANCELLED
+  nameSnapshot    String
+  skuCodeSnapshot String
+  productCodeSnapshot String?
+  revision        Int       @default(1)
+  definitionHash  String // 生成时的 SKU+BOM+数量+单位定义哈希，锁定方案时复核
+  supersedesRequirementId String? // 刷新时旧需求 → 新需求（不建 FK，避免锁链）
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  supplyPlanLines SupplyPlanLine[]
+  costEntries     CostEntry[]
+
+  @@index([orderId, status])
+  @@index([orderLineId])
+  @@index([productSkuId, status])
+  @@index([orderLineId, productSkuId, componentRole])
+  @@index([rootSkuId])
+  @@index([status])
+}
+
+/// 历史治理关系（Phase 0 / Phase 4）。PRJ-OTHER 不复用普通财务关系，
+/// 只回答"这条历史记录当前还没有可靠真实项目归属，暂放哪个治理队列"。
+model ProjectGovernanceAssignment {
+  id                   String    @id @default(cuid())
+  governanceProjectId  String
+  governanceProject    Project   @relation("ProjectGovernanceAssignments", fields: [governanceProjectId], references: [id], onDelete: Restrict)
+  legacyProjectId      String?
+  orderId              String?
+  sourceRecordId       String?
+  // review #5：active subject key（type:id）。OPEN 时写入用于幂等唯一约束；
+  // 进入终态（RESOLVED/IGNORED）时清空为 null，使同一 subject 可被重新打开，
+  // 历史终态记录可保留多条（activeSubjectKey=null 不参与唯一约束）。
+  activeSubjectKey     String?
+  departmentId         String?
+  reasonCode           String // MISSING_PROJECT_NO | UNRESOLVED_PROJECT | LEGACY_MISC
+  status               String    @default("OPEN") // OPEN | RESOLVED | IGNORED
+  resolvedProjectId    String?
+  resolvedProject      Project?  @relation("ProjectGovernanceResolvedProject", fields: [resolvedProjectId], references: [id], onDelete: Restrict)
+  note                 String?
+  createdById          String
+  createdBy            User      @relation("ProjectGovernanceAssignmentCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt            DateTime  @default(now())
+  resolvedAt           DateTime?
+
+  // 同治理桶 + 同 activeSubjectKey 只能有一个 active（OPEN）assignment（并发安全幂等）
+  // SQLite 将 NULL 视为不重复，因此终态（activeSubjectKey=null）可保留多条历史。
+  @@unique([governanceProjectId, activeSubjectKey])
+  @@index([governanceProjectId, status])
+  @@index([legacyProjectId])
+  @@index([orderId])
+  @@index([status])
+}
+
+/// 客户 Profile 的部门认领状态（设计 §4.4）。每个 profile 为每个部门维护一行。
+model CrmProfileDepartmentState {
+  id                   String             @id @default(cuid())
+  profileId            String
+  profile              CrmCustomerProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  department           String
+  claimStatus          String             @default("POOL") // CLAIMED | RECALL_CANDIDATE | POOL
+  ownerUserId          String?
+  ownerUser            User?              @relation("ProfileDepartmentOwners", fields: [ownerUserId], references: [id], onDelete: Restrict)
+  stage                String?
+  importance           String?
+  source               String?
+  claimedAt            DateTime?
+  claimedById          String?
+  claimedBy            User?              @relation("ProfileDepartmentClaimedBy", fields: [claimedById], references: [id], onDelete: SetNull)
+  poolEntryReason      String?             // null=从未由本部门持有；RELEASED | OWNER_UNAVAILABLE
+  releasedAt           DateTime?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  @@unique([profileId, department])
+  @@index([department, claimStatus])
+  @@index([department, ownerUserId, claimStatus])
+}
+
+/// 定向公海共享授权（设计 §4.5）。来源部门控制目标部门公海可见性。
+model CrmProfilePoolShare {
+  id               String             @id @default(cuid())
+  profileId        String
+  profile          CrmCustomerProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  sourceDepartment String
+  targetDepartment String
+  status           String             @default("ACTIVE") // ACTIVE | REVOKED
+  sharedByUserId   String
+  sharedByUser     User               @relation("ProfilePoolSharesCreated", fields: [sharedByUserId], references: [id], onDelete: Restrict)
+  sharedAt         DateTime           @default(now())
+  revokedByUserId  String?
+  revokedByUser    User?              @relation("ProfilePoolSharesRevoked", fields: [revokedByUserId], references: [id], onDelete: SetNull)
+  revokedAt        DateTime?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  @@unique([profileId, sourceDepartment, targetDepartment])
+  @@index([targetDepartment, status, sharedAt])
+  @@index([sourceDepartment, status])
+}
+
+/// 客服号（设计 §4.6）。第一期只允许 ONLINE_OPS。
+model CustomerServiceAccount {
+  id          String   @id @default(cuid())
+  wechatId    String   @unique
+  name        String
+  department  String   @default("ONLINE_OPS")
+  ownerUserId String
+  ownerUser   User     @relation("ManagedServiceAccounts", fields: [ownerUserId], references: [id], onDelete: Restrict)
+  status      String   @default("ACTIVE") // ACTIVE | DISABLED
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([department, ownerUserId, status])
+}

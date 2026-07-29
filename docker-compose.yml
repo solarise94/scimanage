@@ -1,0 +1,57 @@
+# SciManage — Docker Compose（公共部署）
+# 一键启动：docker compose up -d --build
+# 访问：http://localhost:3000
+#
+# 生产配置要点（在 .env 里设置，或直接覆盖下方 environment）：
+#   NEXTAUTH_SECRET   必填，openssl rand -base64 32
+#   NEXTAUTH_URL      对外访问地址（经反向代理的话填 https 域名）
+#   PORTAL_CODE       FIELD_SALES（默认）或 ONLINE_OPS（部门隔离 / 双门户）
+#   MINIMAX_API_KEY   启用 AI Agent 工作台时必填
+#
+# 数据持久化在命名卷 scimanage-data（/data，含 SQLite dev.db 与上传/暂存目录）。
+
+services:
+  scimanage:
+    build:
+      context: .
+      dockerfile: container/Dockerfile
+      args:
+        # 构建期门户（部门隔离）。运行时以下方 environment 的 PORTAL_CODE 为准。
+        PORTAL_CODE: ${PORTAL_CODE:-FIELD_SALES}
+        APP_BUILD_VERSION: ${APP_BUILD_VERSION:-}
+        # 国内构建慢可取消注释切镜像源：
+        # APT_MIRROR: mirrors.aliyun.com
+        # NPM_REGISTRY: https://registry.npmmirror.com
+    image: scimanage:latest
+    container_name: scimanage
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # 运行时门户（与构建期一致或覆盖）
+      PORTAL_CODE: ${PORTAL_CODE:-FIELD_SALES}
+      # 容器内固定值（一般无需改）
+      NODE_ENV: production
+      HOSTNAME: 0.0.0.0
+      PORT: 3000
+      AGENT_RUNTIME_HOST: 127.0.0.1
+      AGENT_RUNTIME_PORT: 3001
+      AGENT_RUNTIME_URL: http://127.0.0.1:3001
+      DATABASE_URL: ${DATABASE_URL:-file:/data/dev.db}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?NEXTAUTH_SECRET 必填，用 openssl rand -base64 32 生成}
+      MINIMAX_API_KEY: ${MINIMAX_API_KEY:-}
+      # 首次启动（dev.db 新建）是否执行 seed（需同时提供下方三个 seed 密码）
+      SEED_ON_FIRST_BOOT: ${SEED_ON_FIRST_BOOT:-true}
+      ADMIN_SEED_PASSWORD: ${ADMIN_SEED_PASSWORD:-}
+      SEED_USER1_PASSWORD: ${SEED_USER1_PASSWORD:-}
+      SEED_USER2_PASSWORD: ${SEED_USER2_PASSWORD:-}
+    volumes:
+      - scimanage-data:/data
+      - ./public/uploads:/app/public/uploads
+
+volumes:
+  scimanage-data:

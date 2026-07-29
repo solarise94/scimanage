@@ -1,0 +1,149 @@
+#!/usr/bin/env bash
+# secret-scan:allow
+# Pre-commit secret scanner for SciManage.
+# 防止明文密码、token、密钥进入 git 历史。
+#
+# 安装：由 package.json 的 "prepare" 脚本自动复制到 .git/hooks/pre-commit。
+# 手动安装：bash scripts/install-hooks.sh
+#
+# 检测规则：
+#   1. 已知泄露过的密码（SHA-256 黑名单，防止 filter-repo 后又被重新引入）
+#   2. bcrypt.hash / hash 等调用里的硬编码字符串字面量
+#   3. 高熵字符串（疑似 API key / token，长度≥24 的赋值字面量）
+#   4. 常见密钥环境变量名直接赋值（NEXTAUTH_SECRET=xxx 等）
+#
+# 误报处理：在文件顶部加注释 "# secret-scan:allow" 可跳过该文件。
+# 也可以用 git commit --no-verify 绕过（不推荐，会被记录）。
+
+set -euo pipefail
+
+# 已知泄露密码的 SHA-256 黑名单（只存哈希，不存明文）。
+# 生成方式：  printf %s "<secret>" | shasum -a 256
+# 新增条目时先用上式算出哈希（小写 hex，去尾部的 "  -"）后追加到此数组。
+LEAKED_SECRET_HASHES=(
+  '8fd4f26e0b563587a9941315b28e0eead4aae0769a89c95f96010a7194837f6f'
+  '4d03490b731c9e1ad2d596814c45c354b37e707c9fe916ec6eb9d40ec28cb431'
+  'fff4748b383fe70650cb716598223fef8618f6f6a99245f36c0e1703b0043fdc'
+)
+
+# 只扫描暂存区的新增/修改内容，避免扫描整个仓库
+# 排除 lockfile、生成的 prisma client、二进制
+staged=$(git diff --cached --name-only --diff-filter=ACM -- \
+  ':(exclude)*.lock' \
+  ':(exclude)*.lockb' \
+  ':(exclude)package-lock.json' \
+  ':(exclude)yarn.lock' \
+  ':(exclude)pnpm-lock.yaml' \
+  ':(exclude)src/generated/**' \
+  ':(exclude).next/**' \
+  ':(exclude)*.png' \
+  ':(exclude)*.jpg' \
+  ':(exclude)*.jpeg' \
+  ':(exclude)*.gif' \
+  ':(exclude)*.webp' \
+  ':(exclude)*.pdf' \
+  ':(exclude)*.xlsx' \
+  ':(exclude)*.db' \
+  2>/dev/null || true)
+
+if [ -z "$staged" ]; then
+  exit 0
+fi
+
+found_issues=0
+issues=""
+
+check_file() {
+  local file="$1"
+
+  # 文件不存在或已删除，跳过
+  [ -f "$file" ] || return 0
+
+  # 白名单：文件顶部有 secret-scan:allow 注释
+  if head -5 "$file" 2>/dev/null | grep -qE 'secret-scan:allow'; then
+    return 0
+  fi
+
+  # 只扫描文本文件
+  local mime
+  mime=$(file -b --mime-type "$file" 2>/dev/null || echo "")
+  case "$mime" in
+    text/*|application/json|application/javascript|application/x-*shellscript|inode/x-empty) ;;
+    *) return 0 ;;
+  esac
+
+  # 取暂存区版本（而非工作区），确保扫描的是即将提交的内容
+  local content
+  content=$(git show ":$file" 2>/dev/null || cat "$file")
+  [ -z "$content" ] && return 0
+
+  # ── 规则 1：已知泄露密码（SHA-256 黑名单，只存哈希）──
+  # 把内容按「空白 + 常见代码标点」切成 token，对每个 token 算 sha256，
+  # 命中黑名单哈希即拦截。只存哈希避免在钩子里二次引入明文；
+  # bash 3.2 兼容（不依赖关联数组 / 进程替换）。
+  # 在标点上额外切分，是为了让带引号/赋值/分号等包裹的裸 secret（如 "secret";、
+  # password=secret）也能作为独立 token 被算到（其哈希与 printf %s "<secret>"
+  # | shasum -a 256 一致）。注意 `-` 与 `_` 是常见密码字符，不作为切分符。
+  # tr -s 把所有分隔符压成单个换行 -> 每行一个 token；sort -u 去重减少 shasum 调用。
+  local leaked_hash=""
+  while IFS= read -r tok; do
+    [ -n "$tok" ] || continue
+    local h
+    h=$(printf '%s' "$tok" | shasum -a 256 | awk '{print $1}')
+    for bad in "${LEAKED_SECRET_HASHES[@]}"; do
+      if [ "$h" = "$bad" ]; then
+        leaked_hash="$bad"
+        break 2
+      fi
+    done
+  done < <(printf '%s' "$content" | tr -s '[:space:]"'\''()[]{},;:=.<>+*/%&|!?' '\n' | sort -u)
+  if [ -n "$leaked_hash" ]; then
+    issues+="  ✗ $file: 命中已知泄露密码黑名单（sha256: ${leaked_hash}）\n"
+    found_issues=1
+  fi
+
+  # ── 规则 2：bcrypt/hash 调用里的硬编码字符串字面量 ──
+  # 匹配 bcrypt.hash("非空字符串", ...) 形式，密码必须从变量/环境变量读取
+  if echo "$content" | grep -nE '(bcrypt\.hash|hash)\s*\(\s*"[^"]{4,}"' >/dev/null 2>&1; then
+    local matches
+    matches=$(echo "$content" | grep -nE '(bcrypt\.hash|hash)\s*\(\s*"[^"]{4,}"' | head -3)
+    issues+="  ✗ $file: bcrypt/hash 里发现硬编码密码字符串（必须用环境变量/变量）:\n"
+    while IFS= read -r line; do
+      [ -n "$line" ] && issues+="      $line\n"
+    done <<< "$matches"
+    found_issues=1
+  fi
+
+  # ── 规则 3：疑似 API key / token（高熵字符串赋值）──
+  # 匹配 KEY="..." SECRET="..." TOKEN="..." PASSWORD="..." 且值长度≥24
+  if echo "$content" | grep -nE '(SECRET|TOKEN|API_KEY|PASSWORD|PRIVATE_KEY)\s*[:=]\s*["'\''][^"'\'']{24,}' >/dev/null 2>&1; then
+    local matches
+    matches=$(echo "$content" | grep -nE '(SECRET|TOKEN|API_KEY|PASSWORD|PRIVATE_KEY)\s*[:=]\s*["'\''][^"'\'']{24,}' | head -3)
+    issues+="  ✗ $file: 疑似硬编码密钥/密码（长度≥24 的赋值字面量）:\n"
+    while IFS= read -r line; do
+      [ -n "$line" ] && issues+="      $line\n"
+    done <<< "$matches"
+    found_issues=1
+  fi
+}
+
+while IFS= read -r file; do
+  [ -n "$file" ] && check_file "$file"
+done <<< "$staged"
+
+if [ "$found_issues" -ne 0 ]; then
+  echo ""
+  echo "🚫 pre-commit: 检测到疑似明文凭据，已拦截提交"
+  echo ""
+  echo -e "$issues"
+  echo ""
+  echo "修复方式："
+  echo "  1. 密码/密钥改用环境变量读取（见 AGENTS.md 安全规则）"
+  echo "  2. 测试账号应自建随机临时账号，跑完即删（见 scripts/smoke-test-*.ts）"
+  echo "  3. 若确认为误报，可在文件顶部加注释:  # secret-scan:allow"
+  echo "  4. 紧急情况可绕过（不推荐，会留痕）:  git commit --no-verify"
+  echo ""
+  exit 1
+fi
+
+exit 0

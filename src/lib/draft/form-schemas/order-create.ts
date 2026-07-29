@@ -1,0 +1,47 @@
+import type { FormSchema } from "./types";
+
+export const orderCreateSchema: FormSchema = {
+  formKey: "order.create",
+  fields: [
+    { key: "title", label: "订单标题", type: "string", required: true },
+    { key: "description", label: "描述", type: "string" },
+    {
+      key: "category",
+      label: "分类",
+      type: "enum",
+      enumValues: { "SERVICE": "服务", "PRODUCT": "商品" },
+    },
+    {
+      key: "customer",
+      label: "客户",
+      type: "string",
+      entityType: "customer",
+      searchable: true,
+    },
+    { key: "buyerNameSnapshot", label: "收件人", type: "string" },
+    { key: "buyerPhoneSnapshot", label: "电话", type: "string" },
+    { key: "buyerWechatSnapshot", label: "微信", type: "string" },
+    {
+      key: "buyerOrgNameSnapshot",
+      label: "单位",
+      type: "string",
+      entityType: "organization",
+      searchable: true,
+    },
+    { key: "buyerAddressSnapshot", label: "地址", type: "string" },
+    { key: "orderedAt", label: "下单日期", type: "date", normalizer: "date" },
+    { key: "lines", label: "明细项", type: "string" },
+    { key: "quantity", label: "数量/例数", type: "number" },
+    { key: "unitPrice", label: "单价", type: "number" },
+    { key: "sampleType", label: "样本类型", type: "string" },
+    { key: "totalAmount", label: "总金额", type: "number" },
+    { key: "projectType", label: "项目类型", type: "string" },
+    { key: "procurementSource", label: "采购渠道", type: "string" },
+    { key: "brand", label: "品牌", type: "string" },
+    { key: "techSupport", label: "技术支持", type: "string" },
+    { key: "budgetCost", label: "项目成本", type: "number" },
+    { key: "initialCost", label: "订单成本", type: "number" },
+    { key: "initialCostType", label: "成本类型", type: "string" },
+    { key: "initialCostRemark", label: "成本备注", type: "string" },
+  ],
+};
