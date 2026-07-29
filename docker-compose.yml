@@ -22,6 +22,7 @@ services:
         # 国内构建慢可取消注释切镜像源：
         # APT_MIRROR: mirrors.aliyun.com
         # NPM_REGISTRY: https://registry.npmmirror.com
+        # NODE_DISTURL: https://npmmirror.com/mirrors/node/
     image: scimanage:latest
     container_name: scimanage
     restart: unless-stopped

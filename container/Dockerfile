@@ -21,12 +21,23 @@
 
 ARG APT_MIRROR=deb.debian.org
 ARG NPM_REGISTRY=https://registry.npmjs.org
+# node-gyp 下载 Node headers 的源（better-sqlite3 等原生模块编译需要）。
+# 国内网络访问 nodejs.org 困难时切 npmmirror：
+#   --build-arg NODE_DISTURL=https://npmmirror.com/mirrors/node/
+ARG NODE_DISTURL=https://nodejs.org/download/release
+# 统一构建版本：builder 内联进 bundle，runner 注入进程 env，两侧必须一致。
+# 默认固定占位符保证零配置一致性；正式发布建议显式传时间戳/commit：
+#   --build-arg APP_BUILD_VERSION=$(date +%s%3N)
+ARG APP_BUILD_VERSION=docker-local
 
 # --------- deps ---------
 FROM node:20-bookworm-slim AS deps
 
 ARG APT_MIRROR
 ARG NPM_REGISTRY
+ARG NODE_DISTURL
+# node-gyp 经 npm config 读取 disturl；prebuild-install 失败后会回退 node-gyp 编译。
+ENV npm_config_disturl=${NODE_DISTURL}
 
 # 装 build 工具（better-sqlite3 等原生模块需要 python3/make/g++）
 RUN set -eux; \
@@ -44,13 +55,18 @@ RUN set -eux; \
 
 WORKDIR /app
 
-ENV NPM_CONFIG_REGISTRY=${NPM_REGISTRY} \
-    PRISMA_ENGINES_MIRROR=https://registry.npmjs.org
+ENV NPM_CONFIG_REGISTRY=${NPM_REGISTRY}
 
-# 主应用依赖（含 better-sqlite3 原生编译）
+# 主应用依赖。--ignore-scripts：npm ci 会触发根 package.json 的 prepare（git hooks 安装），
+# 而镜像里没有 git、scripts/ 也尚未 COPY；原生模块在安装后显式 rebuild。
 COPY package.json package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm \
-    npm ci --include=optional --no-fund --no-audit
+    npm ci --include=optional --ignore-scripts --no-fund --no-audit
+# better-sqlite3 原生二进制（prebuild-install 优先，失败回退 node-gyp 编译；
+# 工具链与 headers 镜像已在上方备好）。@prisma/client 的 postinstall 由 builder 的
+# `npx prisma generate` 覆盖，无需在此执行。
+RUN --mount=type=cache,target=/root/.npm \
+    npm rebuild better-sqlite3
 
 # agent-runtime sidecar 依赖
 COPY agent-runtime/package.json agent-runtime/package-lock.json ./agent-runtime/
@@ -78,8 +94,7 @@ RUN set -eux; \
 
 WORKDIR /app
 
-ENV NPM_CONFIG_REGISTRY=${NPM_REGISTRY} \
-    PRISMA_ENGINES_MIRROR=https://registry.npmjs.org
+ENV NPM_CONFIG_REGISTRY=${NPM_REGISTRY}
 
 # 复用 deps 装好的 node_modules
 COPY --from=deps /app/node_modules ./node_modules
@@ -97,8 +112,16 @@ COPY agent-runtime/src ./agent-runtime/src
 COPY agent-runtime/tsconfig.json ./agent-runtime/tsconfig.json
 COPY agent-runtime/package.json ./agent-runtime/package.json
 
-# Prisma 客户端生成（必须先于 build，next build 会引用）
-RUN npx prisma generate
+# Prisma 客户端生成（必须先于 build，next build 会引用）。
+# 默认走官方 binaries.prisma.sh；国内构建传 --build-arg PRISMA_ENGINES_MIRROR=
+# https://registry.npmmirror.com/-/binary/prisma（留空时【不】注入该变量，
+# 避免空串覆盖默认值）。
+ARG PRISMA_ENGINES_MIRROR=
+RUN if [ -n "${PRISMA_ENGINES_MIRROR}" ]; then \
+      PRISMA_ENGINES_MIRROR="${PRISMA_ENGINES_MIRROR}" npx prisma generate; \
+    else \
+      npx prisma generate; \
+    fi
 
 # Portal code（部门隔离）：getServerPortalConfig 生产 fail-closed，next build 的
 # page-data 收集阶段也会评估该模块，构建期必须提供合法值。
@@ -107,7 +130,7 @@ ARG PORTAL_CODE=FIELD_SALES
 ENV PORTAL_CODE=${PORTAL_CODE}
 
 # 统一构建版本：next.config.ts 构建期读取并内联进 bundle。
-ARG APP_BUILD_VERSION=""
+ARG APP_BUILD_VERSION
 ENV APP_BUILD_VERSION=${APP_BUILD_VERSION}
 
 # Next.js 生产构建（output: standalone）
@@ -212,6 +235,10 @@ RUN chmod +x /entrypoint.sh
 RUN mkdir -p /data /data/invoice-staging /app/public/uploads
 
 # 容器内固定：app 监听 3000，agent-runtime 监听 3001；宿主机映射由 docker compose / -p 决定
+# APP_BUILD_VERSION：runner 进程（app + agent-runtime）运行时读取，与 builder 阶段
+# 内联进 bundle 的值来自同一个顶部 ARG（默认 docker-local），天然一致；
+# 不一致会触发 AgentTurnRunner 版本校验 503 STREAM_TRANSPORT_MISMATCH。
+ARG APP_BUILD_VERSION
 ENV NODE_ENV=production \
     HOSTNAME=0.0.0.0 \
     PORT=3000 \
@@ -219,8 +246,10 @@ ENV NODE_ENV=production \
     AGENT_RUNTIME_HOST=127.0.0.1 \
     AGENT_RUNTIME_PORT=3001 \
     AGENT_RUNTIME_URL=http://127.0.0.1:3001 \
+    AGENT_RUNTIME=pi \
     DATABASE_URL=file:/data/dev.db \
-    NEXTAUTH_URL=http://localhost:3000
+    NEXTAUTH_URL=http://localhost:3000 \
+    APP_BUILD_VERSION=${APP_BUILD_VERSION}
 
 EXPOSE 3000
 

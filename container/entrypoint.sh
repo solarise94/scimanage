@@ -89,6 +89,22 @@ fi
 
 # ---------- 3. 后台启动 agent-runtime sidecar ----------
 # agent-runtime 监听容器内 3001，主 app 通过 AGENT_RUNTIME_URL 访问。
+# 桥接鉴权 AGENT_RUNTIME_TOKEN：未显式提供时按容器启动随机生成（runtime 只监听
+# 127.0.0.1 且两进程同容器，随机 token 足够安全；多副本部署时应显式注入固定值）。
+if [[ -z "${AGENT_RUNTIME_TOKEN:-}" ]]; then
+  AGENT_RUNTIME_TOKEN="$(openssl rand -hex 32)"
+  echo "[entrypoint] AGENT_RUNTIME_TOKEN 未设置，已生成随机 token（仅本次容器生命周期有效）。"
+fi
+export AGENT_RUNTIME_TOKEN
+# 工具桥回跳鉴权 AGENT_INTERNAL_TOOL_TOKEN：runtime 执行工具时回调 app 的
+# /api/agent/tools/* 需要同一 token；app 缺省会生成进程内随机 UUID，runtime 无从得知，
+# 因此容器内必须显式共享。未提供时按容器启动随机生成。
+if [[ -z "${AGENT_INTERNAL_TOOL_TOKEN:-}" ]]; then
+  AGENT_INTERNAL_TOOL_TOKEN="$(openssl rand -hex 32)"
+  echo "[entrypoint] AGENT_INTERNAL_TOOL_TOKEN 未设置，已生成随机 token（仅本次容器生命周期有效）。"
+fi
+export AGENT_INTERNAL_TOOL_TOKEN
+export AGENT_INTERNAL_APP_URL="${AGENT_INTERNAL_APP_URL:-http://127.0.0.1:${PORT}}"
 echo "[entrypoint] starting agent-runtime sidecar on :${AGENT_RUNTIME_PORT}..."
 cd /app/agent-runtime
 nohup node dist/server.js > /var/log/agent-runtime.log 2>&1 &
